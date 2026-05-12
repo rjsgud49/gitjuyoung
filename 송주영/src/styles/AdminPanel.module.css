@@ -1,0 +1,531 @@
+/* =========================================
+   ADMIN PANEL LAYOUT
+   ========================================= */
+
+.adminContainer {
+  min-height: calc(100vh - 62px);
+  background: linear-gradient(170deg, #14100a 0%, #1e1508 55%, #160f06 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top bar */
+.adminTopBar {
+  background: linear-gradient(135deg, #1e1508 0%, #2a1c0a 100%);
+  border-bottom: 1px solid rgba(200, 150, 50, 0.2);
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.adminTopTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e8c870;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.adminTopTitle span:first-child { font-size: 24px; }
+
+.adminTopSub {
+  font-size: 12px;
+  color: rgba(200, 150, 50, 0.5);
+  font-weight: 500;
+  margin-left: auto;
+  letter-spacing: 0.5px;
+}
+
+/* Tab navigation */
+.tabNav {
+  display: flex;
+  gap: 2px;
+  padding: 0 28px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid rgba(200, 150, 50, 0.12);
+  overflow-x: auto;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px;
+  background: none;
+  border: none;
+  color: rgba(200, 150, 50, 0.5);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.tabBtn:hover { color: rgba(200, 150, 50, 0.8); }
+
+.tabBtnActive {
+  color: #e8c870;
+  border-bottom-color: #e8c870;
+  background: rgba(200, 150, 50, 0.06);
+}
+
+.tabIcon { font-size: 16px; }
+
+/* Content area */
+.tabContent {
+  flex: 1;
+  padding: 28px;
+  overflow-y: auto;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* =========================================
+   SHARED CARD
+   ========================================= */
+
+.card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(200, 150, 50, 0.15);
+  border-radius: 16px;
+  padding: 22px;
+  margin-bottom: 20px;
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: #e8c870;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* =========================================
+   DASHBOARD – STAT GRID
+   ========================================= */
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.statCard {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(200, 150, 50, 0.18);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.statCardIcon { font-size: 26px; }
+.statCardLabel { font-size: 11px; color: rgba(200, 150, 50, 0.55); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.statCardValue { font-size: 28px; font-weight: 900; color: white; line-height: 1; }
+.statCardSub { font-size: 11px; color: rgba(255,255,255,0.35); }
+
+/* =========================================
+   GITHUB STATS
+   ========================================= */
+
+.githubSearchRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.githubInput {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(200, 150, 50, 0.25);
+  border-radius: 10px;
+  padding: 11px 16px;
+  color: white;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.githubInput::placeholder { color: rgba(255,255,255,0.25); }
+.githubInput:focus { border-color: rgba(200, 150, 50, 0.6); }
+
+.fetchBtn {
+  background: linear-gradient(135deg, #c06010 0%, #a04000 100%);
+  color: white; border: none; border-radius: 10px;
+  padding: 11px 20px; font-size: 14px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(160, 80, 0, 0.35);
+  transition: all 0.2s ease;
+}
+.fetchBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(160, 80, 0, 0.5); }
+.fetchBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.githubProfile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 18px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(200, 150, 50, 0.12);
+  border-radius: 14px;
+}
+
+.githubAvatar {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(200, 150, 50, 0.4);
+  object-fit: cover;
+}
+
+.githubProfileInfo { flex: 1; }
+.githubName { font-size: 18px; font-weight: 800; color: white; margin-bottom: 2px; }
+.githubLogin { font-size: 13px; color: rgba(200, 150, 50, 0.6); margin-bottom: 5px; }
+.githubBio { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.4; }
+
+.githubMetaRow {
+  display: flex; gap: 16px; flex-wrap: wrap;
+}
+.githubMeta {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: rgba(255,255,255,0.5);
+}
+.githubMeta strong { color: rgba(200, 150, 50, 0.85); font-weight: 800; font-size: 13px; }
+
+/* Commit bar */
+.commitSection { margin-bottom: 18px; }
+.commitLabel { font-size: 12px; color: rgba(200,150,50,0.55); margin-bottom: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.commitValue { font-size: 38px; font-weight: 900; color: #e8c870; text-shadow: 0 0 20px rgba(230,200,80,0.4); line-height: 1; }
+.commitSub { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+
+/* Top repos */
+.repoList { display: flex; flex-direction: column; gap: 8px; }
+.repoItem {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(200,150,50,0.1);
+  border-radius: 10px;
+  transition: border-color 0.2s;
+}
+.repoItem:hover { border-color: rgba(200,150,50,0.25); }
+.repoName { flex: 1; font-size: 13px; color: rgba(200,150,50,0.9); font-weight: 700; }
+.repoLang {
+  font-size: 11px; color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.06);
+  padding: 2px 8px; border-radius: 6px;
+}
+.repoStars { display: flex; align-items: center; gap: 4px; font-size: 12px; color: rgba(255,215,0,0.7); font-weight: 700; }
+
+/* Language bar */
+.langSection { margin-top: 18px; }
+.langBar { display: flex; gap: 6px; flex-wrap: wrap; }
+.langChip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 20px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(200,150,50,0.12);
+  font-size: 11px; color: rgba(255,255,255,0.6);
+}
+.langDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.langCount { font-size: 10px; color: rgba(200,150,50,0.6); font-weight: 700; margin-left: 2px; }
+
+/* Activity */
+.activityList { display: flex; flex-direction: column; gap: 6px; }
+.activityItem {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.025);
+}
+.activityIcon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
+.activityText { flex: 1; font-size: 12px; color: rgba(255,255,255,0.55); }
+.activityText strong { color: rgba(200,150,50,0.8); font-weight: 700; }
+.activityTime { font-size: 11px; color: rgba(255,255,255,0.25); flex-shrink: 0; }
+
+/* Loading / error */
+.loadingRow {
+  display: flex; align-items: center; gap: 10px;
+  color: rgba(200,150,50,0.55); font-size: 14px; padding: 20px 0;
+  justify-content: center;
+}
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(200,150,50,0.2);
+  border-top-color: #e8c870;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.errorMsg {
+  background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.25);
+  border-radius: 10px; padding: 12px 16px; color: #FF8888; font-size: 13px;
+}
+
+/* =========================================
+   ITEMS TAB
+   ========================================= */
+
+.itemsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.itemCard {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(200,150,50,0.15);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex; align-items: center; gap: 14px;
+  transition: border-color 0.2s;
+}
+.itemCard:hover { border-color: rgba(200,150,50,0.35); }
+
+.itemCardImg {
+  width: 60px; height: 60px;
+  border-radius: 10px; object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.1);
+}
+
+.itemCardInfo { flex: 1; min-width: 0; }
+.itemCardName { font-size: 14px; font-weight: 700; color: white; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.itemCardRarity {
+  display: inline-block;
+  font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px;
+  color: white; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
+}
+
+.probRow { display: flex; align-items: center; gap: 8px; }
+.probSlider {
+  flex: 1; height: 4px; cursor: pointer;
+  accent-color: #e8c870;
+}
+.probValue { font-size: 12px; color: #e8c870; font-weight: 700; min-width: 40px; text-align: right; }
+
+.itemCardActions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.dangerBtn {
+  background: rgba(255, 60, 60, 0.12);
+  border: 1px solid rgba(255, 60, 60, 0.3);
+  color: #FF7777; border-radius: 8px;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 14px; transition: all 0.2s;
+}
+.dangerBtn:hover { background: rgba(255,60,60,0.22); }
+
+.normalizeBtn {
+  background: rgba(200, 150, 50, 0.12);
+  border: 1px solid rgba(200, 150, 50, 0.3);
+  color: #e8c870; border-radius: 10px;
+  padding: 8px 16px; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+}
+.normalizeBtn:hover { background: rgba(200, 150, 50, 0.22); }
+
+.probTotal { font-size: 13px; color: rgba(255,255,255,0.4); }
+.probTotalGood { color: #55dd88; font-weight: 700; }
+.probTotalBad  { color: #FF7777; font-weight: 700; }
+
+/* =========================================
+   COIN TAB
+   ========================================= */
+
+.coinGrantForm {
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+.formRow {
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.formLabel {
+  font-size: 11px; color: rgba(200,150,50,0.6);
+  letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700;
+}
+
+.formInput {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(200,150,50,0.2);
+  border-radius: 10px; padding: 12px 16px;
+  color: white; font-size: 15px; outline: none;
+  transition: border-color 0.2s;
+}
+.formInput:focus { border-color: rgba(200,150,50,0.55); }
+.formInput::placeholder { color: rgba(255,255,255,0.2); }
+
+.formSubmitBtn {
+  background: linear-gradient(135deg, #c06010 0%, #a04000 100%);
+  color: white; border: none; border-radius: 10px;
+  padding: 13px 24px; font-size: 15px; font-weight: 800;
+  cursor: pointer; align-self: flex-start;
+  box-shadow: 0 4px 14px rgba(160,80,0,0.4);
+  transition: all 0.2s;
+}
+.formSubmitBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(160,80,0,0.55); }
+.formSubmitBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.coinBalanceDisplay {
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 22px;
+  background: linear-gradient(145deg, #1a1208 0%, #261a0c 100%);
+  border: 1.5px solid rgba(200,150,50,0.3);
+  border-radius: 14px;
+  margin-bottom: 6px;
+}
+.coinBalIcon { font-size: 32px; filter: drop-shadow(0 2px 6px rgba(255,200,0,0.5)); }
+.coinBalLabel { font-size: 11px; color: rgba(200,150,50,0.55); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; }
+.coinBalValue { font-size: 36px; font-weight: 900; color: #FFD700; text-shadow: 0 0 16px rgba(255,215,0,0.5); line-height: 1; }
+
+/* =========================================
+   ANNOUNCEMENTS / EVENTS TAB
+   ========================================= */
+
+.announceList { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+
+.announceItem {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(200,150,50,0.12);
+  border-radius: 12px;
+  transition: border-color 0.2s;
+}
+.announceItem:hover { border-color: rgba(200,150,50,0.25); }
+
+.announceBadge {
+  font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 8px;
+  letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0; margin-top: 1px;
+}
+.badgeInfo    { background: rgba(60,120,255,0.2); color: #88AAFF; border: 1px solid rgba(60,120,255,0.3); }
+.badgeEvent   { background: rgba(200,150,50,0.2); color: #e8c870; border: 1px solid rgba(200,150,50,0.3); }
+.badgeWarning { background: rgba(255,80,80,0.2);  color: #FF8888; border: 1px solid rgba(255,80,80,0.3); }
+.badgeUpdate  { background: rgba(80,200,80,0.2);  color: #88DD88; border: 1px solid rgba(80,200,80,0.3); }
+
+.announceBody { flex: 1; min-width: 0; }
+.announceTitle { font-size: 14px; font-weight: 700; color: white; margin-bottom: 3px; }
+.announceContent { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+.announceDate { font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 4px; }
+
+.pinnedBadge { font-size: 12px; margin-top: 2px; flex-shrink: 0; }
+
+.deleteBtn {
+  background: none; border: none; color: rgba(255,100,100,0.4);
+  cursor: pointer; font-size: 16px; padding: 4px;
+  transition: color 0.2s; flex-shrink: 0;
+}
+.deleteBtn:hover { color: rgba(255,100,100,0.8); }
+
+/* Event items */
+.eventList { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+
+.eventItem {
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(200,150,50,0.12);
+  border-radius: 12px;
+  display: flex; align-items: center; gap: 14px;
+}
+
+.eventItemInfo { flex: 1; }
+.eventItemName { font-size: 14px; font-weight: 700; color: white; margin-bottom: 2px; }
+.eventItemDesc { font-size: 12px; color: rgba(255,255,255,0.4); }
+.eventItemMeta { font-size: 11px; color: rgba(200,150,50,0.5); margin-top: 3px; }
+
+.toggleSwitch {
+  position: relative; display: inline-flex; align-items: center;
+  cursor: pointer; flex-shrink: 0;
+}
+.toggleSwitch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggleTrack {
+  width: 46px; height: 24px; border-radius: 12px; background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(200,150,50,0.2); transition: all 0.25s ease;
+  position: relative;
+}
+.toggleTrack::after {
+  content: ''; position: absolute;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(255,255,255,0.4); top: 2px; left: 2px;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.toggleActive .toggleTrack {
+  background: rgba(200, 150, 50, 0.35);
+  border-color: rgba(200, 150, 50, 0.55);
+}
+.toggleActive .toggleTrack::after {
+  background: #e8c870;
+  transform: translateX(22px);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 0 6px rgba(200,150,50,0.4);
+}
+
+/* New form area */
+.newForm {
+  display: flex; flex-direction: column; gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(200,150,50,0.1);
+  margin-top: 6px;
+}
+
+.formGrid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.formSelect {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(200,150,50,0.2);
+  border-radius: 10px; padding: 12px 16px;
+  color: white; font-size: 14px; outline: none;
+}
+.formSelect option { background: #1e1508; color: white; }
+
+.emptyMsg {
+  text-align: center; padding: 28px;
+  color: rgba(255,255,255,0.25); font-size: 14px;
+}
+
+/* =========================================
+   SUCCESS TOAST
+   ========================================= */
+
+.toast {
+  position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+  background: linear-gradient(135deg, #3a7a30 0%, #286020 100%);
+  color: white; border: 1px solid rgba(80,200,80,0.3);
+  border-radius: 12px; padding: 14px 20px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 700;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  animation: toastIn 0.35s cubic-bezier(0.34,1.4,0.64,1) both;
+}
+@keyframes toastIn {
+  from { transform: translateY(20px) scale(0.9); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);   opacity: 1; }
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+
+@media (max-width: 768px) {
+  .tabContent { padding: 18px 16px; }
+  .adminTopBar { padding: 14px 18px; }
+  .tabNav { padding: 0 16px; }
+  .tabBtn { padding: 12px 14px; font-size: 12px; }
+  .formGrid2 { grid-template-columns: 1fr; }
+  .githubProfile { flex-direction: column; text-align: center; }
+  .githubMetaRow { justify-content: center; }
+}
