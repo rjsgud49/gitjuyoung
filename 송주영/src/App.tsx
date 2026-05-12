@@ -360,7 +360,7 @@ function App() {
       <main className="main-content">
         {currentView === 'machine' && (
           <div className="machine-layout">
-            <ActivityFeed githubToken={githubToken} />
+            <ActivityFeed />
             <CapsuleMachine
               items={gachaItems}
               onGachaPull={handleGachaPull}

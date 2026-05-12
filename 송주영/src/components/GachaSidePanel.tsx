@@ -7,11 +7,7 @@ import styles from '../styles/GachaSidePanel.module.css';
 
 // ── Activity feed (left panel) ────────────────────────────────────────────────
 
-interface ActivityFeedProps {
-  githubToken: string | null;
-}
-
-export function ActivityFeed({ githubToken }: ActivityFeedProps) {
+export function ActivityFeed() {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
 
