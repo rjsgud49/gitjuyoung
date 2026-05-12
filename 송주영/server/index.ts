@@ -46,7 +46,8 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/global', async (_req, res) => {
   try {
     res.json(await getGlobalState());
-  } catch {
+  } catch (err) {
+    console.error('[/api/global] ERROR:', err);
     res.status(500).json({ error: 'db_error' });
   }
 });
@@ -88,7 +89,8 @@ app.get('/api/me', async (req, res) => {
       collectedItems: row.collectedItems,
       githubData: row.githubData,
     });
-  } catch {
+  } catch (err) {
+    console.error('[/api/me GET] ERROR:', err);
     res.status(500).json({ error: 'db_error' });
   }
 });
@@ -121,7 +123,8 @@ app.put('/api/me', async (req, res) => {
     }
     await saveUser(row);
     res.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error('[/api/me PUT] ERROR:', err);
     res.status(500).json({ error: 'db_error' });
   }
 });

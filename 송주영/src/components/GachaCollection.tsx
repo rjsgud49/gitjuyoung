@@ -59,8 +59,8 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
       {/* Book cover header */}
       <div className={styles.bookCover}>
         <div className={styles.bookOrnamentTop}>✦ ── ✦ ── ✦</div>
-        <h1 className={styles.bookTitle}>마법 도감</h1>
-        <div className={styles.bookSubtitle}>Codex Arcanum</div>
+        <h1 className={styles.bookTitle}>주영 도감</h1>
+        <div className={styles.bookSubtitle}>Codex Juyoung</div>
         <div className={styles.bookOrnamentBot}>✦ ── ✦ ── ✦</div>
 
         {/* Completion scroll */}

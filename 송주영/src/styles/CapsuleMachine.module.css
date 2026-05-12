@@ -877,6 +877,8 @@
   text-shadow: 0 2px 5px rgba(0,0,0,0.45);
   position: relative;
   overflow: hidden;
+  white-space: nowrap;
+  word-break: keep-all;
   box-shadow:
     0 8px 22px rgba(160, 60, 0, 0.55),
     0 3px 8px rgba(0,0,0,0.3),
@@ -1127,6 +1129,12 @@
 
 .pullButtonRow .pullButton {
   flex: 1;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  padding: 14px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pullButton3x {
