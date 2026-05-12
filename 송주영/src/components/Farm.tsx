@@ -200,30 +200,28 @@ export function Farm({
   // Speech bubble random trigger
   useEffect(() => {
     if (placedItems.length === 0) return;
-    const interval = setInterval(() => {
-      const idx = Math.floor(Math.random() * placedItems.length);
-      const item = placedItems[idx];
-      if (!item) return;
-      const phrase = SPEECH_BUBBLES[Math.floor(Math.random() * SPEECH_BUBBLES.length)];
+    const scheduleNext = () => {
+      const delay = 30000 + Math.random() * 30000; // 30~60초 랜덤
+      return setTimeout(() => {
+        const idx = Math.floor(Math.random() * placedItems.length);
+        const item = placedItems[idx];
+        if (item) {
+          const phrase = SPEECH_BUBBLES[Math.floor(Math.random() * SPEECH_BUBBLES.length)];
+          setSpeechBubbles(prev => new Map(prev).set(item.itemId, phrase));
+          const hide = setTimeout(() => {
+            setSpeechBubbles(prev => { const n = new Map(prev); n.delete(item.itemId); return n; });
+            bubbleTimers.current.delete(item.itemId);
+          }, 3500);
+          const old = bubbleTimers.current.get(item.itemId);
+          if (old) clearTimeout(old);
+          bubbleTimers.current.set(item.itemId, hide);
+        }
+        outerTimer = scheduleNext();
+      }, delay);
+    };
+    let outerTimer = scheduleNext();
 
-      setSpeechBubbles(prev => new Map(prev).set(item.itemId, phrase));
-
-      // clear existing timer for this item
-      const existing = bubbleTimers.current.get(item.itemId);
-      if (existing) clearTimeout(existing);
-
-      const timer = setTimeout(() => {
-        setSpeechBubbles(prev => {
-          const next = new Map(prev);
-          next.delete(item.itemId);
-          return next;
-        });
-        bubbleTimers.current.delete(item.itemId);
-      }, 2800);
-      bubbleTimers.current.set(item.itemId, timer);
-    }, 1800 + Math.random() * 1200);
-
-    return () => clearInterval(interval);
+    return () => clearTimeout(outerTimer);
   }, [placedItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showToast = useCallback((msg: string) => {
@@ -407,8 +405,16 @@ export function Farm({
       <div className={styles.earningsPanel}>
         <div className={styles.earningsLeft}>
           <div className={styles.earningsLabel}>현재 적립</div>
-          <div className={styles.earningsValue}>🪙 {accumulated.toFixed(2)}</div>
-          <div className={styles.earningsRate}>시간당 {totalRate.toFixed(2)} · 최대 24시간 저장</div>
+          <div className={styles.earningsValue}>
+            🪙 {accumulated >= 1000
+              ? accumulated.toFixed(2)
+              : accumulated >= 1
+              ? accumulated.toFixed(3)
+              : accumulated.toFixed(4)}
+          </div>
+          <div className={styles.earningsRate}>
+            시간당 +{totalRate.toFixed(2)} · 초당 +{(totalRate / 3600).toFixed(4)} · 최대 24시간
+          </div>
         </div>
         <button
           className={styles.harvestBtn}

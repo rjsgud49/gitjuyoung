@@ -106,6 +106,22 @@ export async function saveFarmConfig(cfg: FarmConfig): Promise<void> {
   } finally { conn.release(); }
 }
 
+// ─── Individual value helpers ─────────────────────────────────────────────────
+
+const RARITY_RANGES: Record<string, [number, number]> = {
+  common: [1.0, 3.0], rare: [3.0, 7.0], epic: [7.0, 15.0], legendary: [15.0, 30.0],
+};
+
+function randomInRange(rarity: string): number {
+  const [min, max] = RARITY_RANGES[rarity] ?? [1.0, 3.0];
+  return parseFloat((min + Math.random() * (max - min)).toFixed(2));
+}
+
+function isStaleValue(val: number, rarity: string): boolean {
+  const [min] = RARITY_RANGES[rarity] ?? [1.0, 3.0];
+  return val < min * 0.95; // below the rarity minimum → stale default
+}
+
 // ─── Farm CRUD ────────────────────────────────────────────────────────────────
 
 export async function getUserFarmState(login: string, githubId: number): Promise<FarmState> {
@@ -136,6 +152,19 @@ export async function getUserFarmState(login: string, githubId: number): Promise
        ORDER BY uf.placed_at`,
       [u.id]
     ) as any[];
+
+    // Auto-fix stale individual_value (items collected before the system was added)
+    for (const r of farmRows as any[]) {
+      const val = parseFloat(r.individual_value);
+      if (isStaleValue(val, r.item_rarity)) {
+        const newVal = randomInRange(r.item_rarity);
+        await conn.query(
+          'UPDATE user_collected_items SET individual_value = ? WHERE user_id = ? AND item_id = ?',
+          [newVal, u.id, r.item_id]
+        );
+        r.individual_value = newVal;
+      }
+    }
 
     const placedItems: FarmPlacedItem[] = (farmRows as any[]).map(r => ({
       itemId: r.item_id,
@@ -436,6 +465,19 @@ export async function getOrCreateUser(login: string, githubId: number): Promise<
     const [items] = await conn.query(
       'SELECT * FROM user_collected_items WHERE user_id = ?', [u.id]
     ) as any[];
+
+    // Auto-fix stale individual_value for collected items
+    for (const r of items as any[]) {
+      const val = parseFloat(r.individual_value ?? '0');
+      if (isStaleValue(val, r.item_rarity)) {
+        const newVal = randomInRange(r.item_rarity);
+        await conn.query(
+          'UPDATE user_collected_items SET individual_value = ? WHERE user_id = ? AND item_id = ?',
+          [newVal, u.id, r.item_id]
+        );
+        r.individual_value = newVal;
+      }
+    }
 
     return {
       githubLogin: u.github_login,
