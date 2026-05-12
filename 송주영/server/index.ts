@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { verifyGithubToken, isAdminLogin } from './auth';
 import {
   loadAppData,
@@ -9,6 +11,8 @@ import {
   type GlobalState,
   type UserState,
 } from './store';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PORT = parseInt(process.env.PORT ?? '8787', 10);
 
@@ -138,6 +142,13 @@ app.put('/api/admin/global', async (req, res) => {
   res.json({ ok: true });
 });
 
+// 프로덕션: 빌드된 프론트 정적 파일 서빙
+const distPath = join(__dirname, '../dist');
+app.use(express.static(distPath));
+app.get('*', (_req, res) => {
+  res.sendFile(join(distPath, 'index.html'));
+});
+
 app.listen(PORT, () => {
-  console.log(`[server] http://127.0.0.1:${PORT}  (GET /api/health)`);
+  console.log(`[server] http://0.0.0.0:${PORT}  (GET /api/health)`);
 });
