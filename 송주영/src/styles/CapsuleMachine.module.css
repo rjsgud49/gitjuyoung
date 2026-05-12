@@ -1117,6 +1117,185 @@
 .closeButton:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(160, 80, 0, 0.65), inset 0 1px 0 rgba(255,220,100,0.2); }
 
 /* =========================================
+   PULL BUTTON ROW (1x + 3x)
+   ========================================= */
+
+.pullButtonRow {
+  display: flex;
+  gap: 10px;
+}
+
+.pullButtonRow .pullButton {
+  flex: 1;
+}
+
+.pullButton3x {
+  background: linear-gradient(180deg, #5010c8 0%, #3800a0 52%, #260080 100%) !important;
+  box-shadow:
+    0 8px 22px rgba(80, 20, 200, 0.55),
+    0 3px 8px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(180,140,255,0.25),
+    inset 0 -3px 6px rgba(0,0,0,0.28) !important;
+}
+
+.pullButton3x:hover:not(.pullButtonDisabled) {
+  background: linear-gradient(180deg, #6020e8 0%, #4810c0 52%, #340098 100%) !important;
+  box-shadow:
+    0 12px 30px rgba(80, 20, 200, 0.65),
+    0 5px 12px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(180,140,255,0.25),
+    inset 0 -3px 6px rgba(0,0,0,0.28) !important;
+}
+
+/* =========================================
+   3x MULTI-REVEAL OVERLAY
+   ========================================= */
+
+.multiRevealTitle {
+  color: #FFD700;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-align: center;
+  text-shadow: 0 0 24px rgba(255,215,0,0.6);
+  margin-bottom: 8px;
+  animation: multiTitlePop 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+@keyframes multiTitlePop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.multiCardRow {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* 3D flip card container */
+.multiCardWrapper {
+  perspective: 1000px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.multiCardInner {
+  width: 165px;
+  height: 232px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 14px;
+}
+
+.multiCardFlipped {
+  transform: rotateY(180deg);
+}
+
+.multiCardFront,
+.multiCardBack {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+.multiCardFront {
+  transform: rotateY(180deg);
+}
+
+.multiCardBack {
+  background: linear-gradient(155deg, #0d0028 0%, #1a0050 50%, #0d0028 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(150, 100, 255, 0.4);
+  box-shadow: 0 0 20px rgba(100, 60, 200, 0.3);
+}
+
+.multiCardBackPattern {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.7;
+}
+
+.multiCardBackIcon {
+  font-size: 40px;
+  filter: drop-shadow(0 2px 8px rgba(160, 120, 255, 0.5));
+}
+
+.multiCardBackLabel {
+  font-size: 10px;
+  color: rgba(180, 140, 255, 0.8);
+  letter-spacing: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.multiCardContent {
+  position: relative;
+  z-index: 5;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 10px 12px;
+}
+
+.multiCardRarityLabel {
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--rarity-color);
+  text-shadow: 0 0 10px var(--rarity-color);
+  margin-bottom: 4px;
+}
+
+.multiCardImageFrame {
+  width: 118px;
+  height: 118px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 4px 0 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  flex-shrink: 0;
+}
+
+.multiCardName {
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 8px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  line-height: 1.2;
+}
+
+.multiCardGlow {
+  position: absolute;
+  bottom: -8px;
+  left: 10%;
+  right: 10%;
+  height: 4px;
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: multiGlowPulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes multiGlowPulse {
+  from { opacity: 0.4; transform: scaleX(0.8); }
+  to   { opacity: 0.9; transform: scaleX(1.1); }
+}
+
+/* =========================================
    RESPONSIVE
    ========================================= */
 

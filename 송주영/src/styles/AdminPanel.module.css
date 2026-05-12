@@ -310,12 +310,112 @@
   color: white; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px;
 }
 
-.probRow { display: flex; align-items: center; gap: 8px; }
-.probSlider {
-  flex: 1; height: 4px; cursor: pointer;
-  accent-color: #e8c870;
+/* Rarity preset section */
+.rarityPresetGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
 }
-.probValue { font-size: 12px; color: #e8c870; font-weight: 700; min-width: 40px; text-align: right; }
+
+.rarityPresetItem {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(200,150,50,0.2);
+  border-radius: 12px;
+  padding: 14px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  align-items: center;
+}
+
+.rarityPresetLabel {
+  font-size: 13px; font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.rarityWeightInput {
+  width: 72px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(200,150,50,0.3);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: white; font-size: 18px; font-weight: 800;
+  text-align: center; outline: none;
+}
+.rarityWeightInput:focus { border-color: rgba(200,150,50,0.7); }
+
+.presetHint {
+  font-size: 12px; color: rgba(255,255,255,0.3);
+  margin-bottom: 14px; text-align: center;
+}
+
+.applyRarityBtn {
+  background: linear-gradient(135deg, #4a8a3a 0%, #326828 100%);
+  color: white; border: none; border-radius: 10px;
+  padding: 12px 24px; font-size: 14px; font-weight: 800;
+  cursor: pointer; width: 100%;
+  box-shadow: 0 4px 14px rgba(60,120,40,0.35);
+  transition: all 0.2s;
+}
+.applyRarityBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(60,120,40,0.5); }
+
+/* Rarity stat distribution */
+.rarityStatList { display: flex; flex-direction: column; gap: 12px; }
+
+.rarityStatRow { display: flex; align-items: center; gap: 12px; }
+
+.rarityStatLabel {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; width: 80px; flex-shrink: 0;
+}
+.rarityStatCount { font-size: 11px; color: rgba(255,255,255,0.3); font-weight: 400; }
+
+.rarityStatBar {
+  flex: 1; height: 8px; border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.rarityStatBarFill {
+  height: 100%; border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.rarityStatNumbers {
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0; min-width: 160px; justify-content: flex-end;
+}
+.rarityStatWeight { font-size: 11px; color: rgba(255,255,255,0.3); }
+.rarityStatPct { font-size: 14px; font-weight: 800; min-width: 52px; text-align: right; }
+
+/* Rarity group header */
+.rarityGroup { margin-bottom: 24px; }
+.rarityGroup:last-child { margin-bottom: 0; }
+
+.rarityGroupHeader {
+  font-size: 13px; font-weight: 800;
+  padding: 8px 12px;
+  border-left: 3px solid;
+  background: rgba(255,255,255,0.03);
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+.rarityGroupCount { font-size: 11px; opacity: 0.6; font-weight: 400; }
+
+/* Weight input in card */
+.probRow { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.weightLabel { font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 1px; flex-shrink: 0; }
+.weightInput {
+  width: 60px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(200,150,50,0.25);
+  border-radius: 7px;
+  padding: 5px 8px;
+  color: white; font-size: 14px; font-weight: 800;
+  text-align: center; outline: none;
+  transition: border-color 0.2s;
+}
+.weightInput:focus { border-color: rgba(200,150,50,0.6); }
+.probValue { font-size: 12px; font-weight: 700; min-width: 46px; text-align: right; }
 
 .itemCardActions { display: flex; gap: 6px; flex-shrink: 0; }
 
@@ -329,16 +429,6 @@
 }
 .dangerBtn:hover { background: rgba(255,60,60,0.22); }
 
-.normalizeBtn {
-  background: rgba(200, 150, 50, 0.12);
-  border: 1px solid rgba(200, 150, 50, 0.3);
-  color: #e8c870; border-radius: 10px;
-  padding: 8px 16px; font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
-}
-.normalizeBtn:hover { background: rgba(200, 150, 50, 0.22); }
-
-.probTotal { font-size: 13px; color: rgba(255,255,255,0.4); }
 .probTotalGood { color: #55dd88; font-weight: 700; }
 .probTotalBad  { color: #FF7777; font-weight: 700; }
 
@@ -498,6 +588,80 @@
 }
 
 /* =========================================
+   USERS TAB
+   ========================================= */
+
+.userList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.userItem {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(200,150,50,0.12);
+  border-radius: 12px;
+  padding: 14px 16px;
+  transition: border-color 0.2s;
+}
+.userItem:hover { border-color: rgba(200,150,50,0.25); }
+
+.userItemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.userItemLogin {
+  font-size: 15px;
+  font-weight: 800;
+  color: #e8c870;
+}
+
+.userItemMeta {
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+}
+
+.userItemStats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.userStat {
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+  font-weight: 600;
+}
+
+.userItemActions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.userEditRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.userEditField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 100px;
+}
+
+/* =========================================
    SUCCESS TOAST
    ========================================= */
 
@@ -528,4 +692,6 @@
   .formGrid2 { grid-template-columns: 1fr; }
   .githubProfile { flex-direction: column; text-align: center; }
   .githubMetaRow { justify-content: center; }
+  .rarityPresetGrid { grid-template-columns: repeat(2, 1fr); }
+  .rarityStatNumbers { min-width: 120px; }
 }

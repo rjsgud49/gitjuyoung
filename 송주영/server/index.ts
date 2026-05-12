@@ -9,6 +9,10 @@ import {
   saveGlobalState,
   getOrCreateUser,
   saveUser,
+  checkAndDoCheckin,
+  listUsers,
+  adminUpdateUser,
+  adminDeleteUser,
   type GlobalState,
   type UserState,
 } from './store';
@@ -128,6 +132,63 @@ app.put('/api/admin/global', async (req, res) => {
     if (Array.isArray(body.events)) g.events = body.events;
     if (Array.isArray(body.announcements)) g.announcements = body.announcements;
     await saveGlobalState(g);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+app.post('/api/checkin', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  try {
+    const result = await checkAndDoCheckin(authUser.login, authUser.id);
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+app.get('/api/admin/users', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) {
+    res.status(403).json({ error: 'forbidden' }); return;
+  }
+  try {
+    res.json(await listUsers());
+  } catch {
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+app.put('/api/admin/users/:login', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) {
+    res.status(403).json({ error: 'forbidden' }); return;
+  }
+  const body = req.body as { coins?: number; totalPulls?: number };
+  try {
+    await adminUpdateUser(req.params.login, {
+      coins: typeof body.coins === 'number' && body.coins >= 0 ? Math.floor(body.coins) : undefined,
+      totalPulls: typeof body.totalPulls === 'number' && body.totalPulls >= 0 ? Math.floor(body.totalPulls) : undefined,
+    });
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+app.delete('/api/admin/users/:login', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) {
+    res.status(403).json({ error: 'forbidden' }); return;
+  }
+  try {
+    await adminDeleteUser(req.params.login);
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: 'db_error' });

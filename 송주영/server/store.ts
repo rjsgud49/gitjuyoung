@@ -36,6 +36,16 @@ export interface GlobalState {
   announcements: Announcement[];
 }
 
+export interface UserSummary {
+  id: number;
+  githubLogin: string;
+  githubId: number;
+  coins: number;
+  totalPulls: number;
+  lastCheckinDate: string | null;
+  createdAt: string;
+}
+
 export async function getGlobalState(): Promise<GlobalState> {
   const conn = await pool.getConnection();
   try {
@@ -165,6 +175,85 @@ export async function getOrCreateUser(login: string, githubId: number): Promise<
             fetchedAt: new Date(u.github_fetched_at).toISOString() }
         : null,
     };
+  } finally {
+    conn.release();
+  }
+}
+
+export async function checkAndDoCheckin(login: string, githubId: number): Promise<{ alreadyDone: boolean; coinsAdded: number }> {
+  const key = login.trim().toLowerCase();
+  const today = new Date().toISOString().slice(0, 10);
+  const conn = await pool.getConnection();
+  try {
+    const [cfgs] = await conn.query('SELECT starting_coins FROM global_config WHERE id = 1') as any[];
+    const startingCoins = (cfgs as any[])[0]?.starting_coins ?? 30;
+    await conn.query(
+      `INSERT INTO users (github_login, github_id, coins) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE github_id = VALUES(github_id)`,
+      [key, githubId, startingCoins]
+    );
+    const [rows] = await conn.query(
+      'SELECT last_checkin_date FROM users WHERE github_login = ?', [key]
+    ) as any[];
+    const u = (rows as any[])[0];
+    if (!u) return { alreadyDone: false, coinsAdded: 0 };
+    const lastCheckin = u.last_checkin_date
+      ? new Date(u.last_checkin_date).toISOString().slice(0, 10) : null;
+    if (lastCheckin === today) return { alreadyDone: true, coinsAdded: 0 };
+    await conn.query(
+      'UPDATE users SET coins = coins + 20, last_checkin_date = ? WHERE github_login = ?',
+      [today, key]
+    );
+    return { alreadyDone: false, coinsAdded: 20 };
+  } finally {
+    conn.release();
+  }
+}
+
+export async function listUsers(): Promise<UserSummary[]> {
+  const conn = await pool.getConnection();
+  try {
+    const [rows] = await conn.query(
+      'SELECT id, github_login, github_id, coins, total_pulls, last_checkin_date, created_at FROM users ORDER BY created_at DESC'
+    ) as any[];
+    return (rows as any[]).map(r => ({
+      id: r.id,
+      githubLogin: r.github_login,
+      githubId: r.github_id,
+      coins: r.coins,
+      totalPulls: r.total_pulls,
+      lastCheckinDate: r.last_checkin_date
+        ? new Date(r.last_checkin_date).toISOString().slice(0, 10) : null,
+      createdAt: new Date(r.created_at).toISOString(),
+    }));
+  } finally {
+    conn.release();
+  }
+}
+
+export async function adminUpdateUser(
+  login: string, data: { coins?: number; totalPulls?: number }
+): Promise<void> {
+  const key = login.trim().toLowerCase();
+  const conn = await pool.getConnection();
+  try {
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    if (typeof data.coins === 'number') { sets.push('coins = ?'); vals.push(data.coins); }
+    if (typeof data.totalPulls === 'number') { sets.push('total_pulls = ?'); vals.push(data.totalPulls); }
+    if (sets.length === 0) return;
+    vals.push(key);
+    await conn.query(`UPDATE users SET ${sets.join(', ')} WHERE github_login = ?`, vals);
+  } finally {
+    conn.release();
+  }
+}
+
+export async function adminDeleteUser(login: string): Promise<void> {
+  const key = login.trim().toLowerCase();
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('DELETE FROM users WHERE github_login = ?', [key]);
   } finally {
     conn.release();
   }

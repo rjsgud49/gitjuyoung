@@ -16,7 +16,8 @@ type AnimPhase =
   | 'capsule-open'
   | 'white-flash'
   | 'card-reveal'
-  | 'card-shown';
+  | 'card-shown'
+  | 'multi-reveal';
 
 interface Particle {
   id: number; size: number; color: string;
@@ -34,6 +35,7 @@ interface PhysicsBall {
 interface Props {
   items: GachaItem[];
   onGachaPull: (result: GachaResult) => void;
+  onGachaPullMulti?: (results: GachaResult[]) => void;
   collectedItems: Map<string, CollectedItem>;
   coins: number;
   onCoinSpend: (amount: number) => void;
@@ -241,7 +243,7 @@ function getParticleCount(rarity: string): number {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const CapsuleMachine = ({
-  items, onGachaPull, collectedItems, coins, onCoinSpend, activeEvent,
+  items, onGachaPull, onGachaPullMulti, collectedItems, coins, onCoinSpend, activeEvent,
   basePullCost = 10,
 }: Props) => {
   const [phase,           setPhase]          = useState<AnimPhase>('idle');
@@ -250,6 +252,9 @@ export const CapsuleMachine = ({
   const [particles,       setParticles]      = useState<Particle[]>([]);
   const [machineShaking,  setMachineShaking] = useState(false);
   const [rollingBallColor, setRollingBallColor] = useState<string | null>(null);
+  // 3x pull state
+  const [multiResults,   setMultiResults]   = useState<GachaResult[]>([]);
+  const [multiRevealIdx, setMultiRevealIdx] = useState(0); // 0=none revealed, 1/2/3=cards revealed
 
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const ballsRef    = useRef<PhysicsBall[]>([]);
@@ -366,6 +371,62 @@ export const CapsuleMachine = ({
     addTimeout(() => setPhase('waiting-tap'), 2650);
   }, [phase, coins, pullCost, items, collectedItems, onCoinSpend, onGachaPull, addTimeout]);
 
+  // ── 3x Pull ───────────────────────────────────────────────────────────────────
+
+  const handlePull3x = useCallback(() => {
+    if (phase !== 'idle' || coins < pullCost * 3 || items.length === 0) return;
+    onCoinSpend(pullCost * 3);
+
+    const results = [
+      simulateGacha(items, collectedItems),
+      simulateGacha(items, collectedItems),
+      simulateGacha(items, collectedItems),
+    ];
+    setMultiResults(results);
+    setMultiRevealIdx(0);
+    if (onGachaPullMulti) onGachaPullMulti(results);
+
+    const color = CAPSULE_COLORS[Math.floor(Math.random() * CAPSULE_COLORS.length)];
+    setCapsuleColor(color);
+
+    const bottomBall = ballsRef.current.reduce((best, b) =>
+      b.y > best.y ? b : best, ballsRef.current[0]);
+    const rollingColor = bottomBall?.color ?? color;
+    if (bottomBall) {
+      bottomBall.ejecting = true;
+      bottomBall.vx = 0;
+      bottomBall.vy = 220;
+    }
+
+    setPhase('coin-insert');
+
+    addTimeout(() => {
+      setPhase('knob-turn');
+      setMachineShaking(true);
+      setRollingBallColor(rollingColor);
+      addTimeout(() => setMachineShaking(false), 750);
+    }, 650);
+
+    addTimeout(() => {
+      setPhase('capsule-drop');
+      setRollingBallColor(null);
+      const newColor = CAPSULE_COLORS[Math.floor(Math.random() * CAPSULE_COLORS.length)];
+      ballsRef.current.push({
+        x: (Math.random() - 0.5) * 20, y: -(WINDOW_R - BALL_RADIUS - 2),
+        vx: (Math.random() - 0.5) * 15, vy: 10,
+        r: BALL_RADIUS, color: newColor,
+      });
+    }, 1500);
+
+    // Skip waiting-tap → go straight to multi-reveal with sequential flips
+    addTimeout(() => {
+      setPhase('multi-reveal');
+      addTimeout(() => setMultiRevealIdx(1), 500);
+      addTimeout(() => setMultiRevealIdx(2), 1900);
+      addTimeout(() => setMultiRevealIdx(3), 3300);
+    }, 2650);
+  }, [phase, coins, pullCost, items, collectedItems, onCoinSpend, onGachaPullMulti, addTimeout]);
+
   // ── Tap capsule ───────────────────────────────────────────────────────────────
 
   const handleTap = useCallback(() => {
@@ -386,11 +447,14 @@ export const CapsuleMachine = ({
     setPhase('idle');
     setResult(null);
     setParticles([]);
+    setMultiResults([]);
+    setMultiRevealIdx(0);
   }, [clearAll]);
 
   // ── Derived ───────────────────────────────────────────────────────────────────
 
   const canPull      = phase === 'idle' && coins >= pullCost && items.length > 0;
+  const canPull3x    = phase === 'idle' && coins >= pullCost * 3 && items.length > 0;
   const showOverlay  = phase === 'white-flash' || phase === 'card-reveal' || phase === 'card-shown';
   const overlayClass = phase === 'white-flash' ? styles.flashPhase
                      : phase === 'card-reveal'  ? styles.revealPhase
@@ -404,7 +468,7 @@ export const CapsuleMachine = ({
     if (phase === 'waiting-tap') return '캡슐을 탭하여 열어보세요! ✨';
     if (phase !== 'idle')        return '진행 중...';
     if (coins < pullCost)        return `코인 부족 (${pullCost}코인 필요)`;
-    return `뽑기! (${pullCost}코인)`;
+    return `1회 뽑기 (${pullCost}코인)`;
   };
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -536,18 +600,84 @@ export const CapsuleMachine = ({
             </div>
           </div>
 
-          {/* Pull button */}
+          {/* Pull buttons */}
           <div className={styles.pullButtonWrapper}>
-            <button
-              className={`${styles.pullButton} ${!canPull ? styles.pullButtonDisabled : ''}`}
-              onClick={handlePull}
-              disabled={!canPull}
-            >
-              {btnLabel()}
-            </button>
+            <div className={styles.pullButtonRow}>
+              <button
+                className={`${styles.pullButton} ${!canPull ? styles.pullButtonDisabled : ''}`}
+                onClick={handlePull}
+                disabled={!canPull}
+              >
+                {btnLabel()}
+              </button>
+              <button
+                className={`${styles.pullButton} ${styles.pullButton3x} ${!canPull3x ? styles.pullButtonDisabled : ''}`}
+                onClick={handlePull3x}
+                disabled={!canPull3x}
+              >
+                {phase !== 'idle' ? '진행 중...' : `3회 뽑기 (${pullCost * 3}코인)`}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* 3x Multi-reveal overlay */}
+      {phase === 'multi-reveal' && multiResults.length === 3 && (
+        <div className={`${styles.flashOverlay} ${styles.shownPhase}`}>
+          <div className={styles.multiRevealTitle}>✨ 3연속 뽑기 결과 ✨</div>
+          <div className={styles.multiCardRow}>
+            {multiResults.map((r, idx) => {
+              const revealed = multiRevealIdx > idx;
+              const cardClass = rarityCardClass[r.item.rarity] ?? styles.cardCommon;
+              return (
+                <div key={idx} className={styles.multiCardWrapper}>
+                  <div className={`${styles.multiCardInner} ${revealed ? styles.multiCardFlipped : ''}`}>
+                    {/* Back face */}
+                    <div className={styles.multiCardBack}>
+                      <div className={styles.multiCardBackPattern}>
+                        <span className={styles.multiCardBackIcon}>🎱</span>
+                        <div className={styles.multiCardBackLabel}>CAPSULE</div>
+                      </div>
+                    </div>
+                    {/* Front face */}
+                    <div className={`${styles.multiCardFront} ${cardClass}`}
+                      style={{ '--rarity-color': getRarityColor(r.item.rarity) } as React.CSSProperties}>
+                      <div className={styles.cardBg} />
+                      {r.item.rarity !== 'common' && <div className={styles.cardHolo} />}
+                      {r.item.rarity === 'legendary' && <div className={styles.cardLegendaryRays} />}
+                      <div className={styles.multiCardContent}>
+                        <div className={styles.multiCardRarityLabel}>{getRarityLabelFull(r.item.rarity)}</div>
+                        {r.isNew && <div className={styles.newBadge}>NEW!</div>}
+                        <div className={styles.multiCardImageFrame}>
+                          <img src={r.item.image} alt={r.item.name} className={styles.cardImage}
+                            onError={e => {
+                              (e.currentTarget as HTMLImageElement).src =
+                                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23333" width="80" height="80"/%3E%3C/svg%3E';
+                            }}
+                          />
+                        </div>
+                        <div className={styles.multiCardName}>{r.item.name}</div>
+                        <div className={styles.cardRarityBadge} style={{ backgroundColor: getRarityColor(r.item.rarity) }}>
+                          {getRarityLabel(r.item.rarity)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Rarity glow under card */}
+                  {revealed && (
+                    <div className={styles.multiCardGlow}
+                      style={{ boxShadow: `0 0 24px ${getRarityColor(r.item.rarity)}` }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {multiRevealIdx >= 3 && (
+            <button className={styles.closeButton} onClick={handleClose}>계속하기</button>
+          )}
+        </div>
+      )}
 
       {/* Flash + Card overlay */}
       {showOverlay && (

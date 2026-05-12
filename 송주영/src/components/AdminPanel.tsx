@@ -4,6 +4,8 @@ import type { GachaEvent, Announcement } from '../types/admin';
 import { getRarityColor, getRarityLabel } from '../utils/gachaUtils';
 import { fetchGitHubFullStats } from '../utils/githubUtils';
 import type { GitHubStats } from '../utils/githubUtils';
+import { fetchAdminUsers, putAdminUser, deleteAdminUser } from '../api/gameApi';
+import type { UserSummary } from '../api/gameApi';
 import styles from '../styles/AdminPanel.module.css';
 
 // ─── Lang colors ──────────────────────────────────────────────────────────────
@@ -43,9 +45,16 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}일 전`;
 }
 
+// ─── Rarity helpers ───────────────────────────────────────────────────────────
+
+const RARITY_ORDER: GachaItem['rarity'][] = ['legendary', 'epic', 'rare', 'common'];
+const RARITY_EMOJI: Record<GachaItem['rarity'], string> = {
+  legendary: '⭐', epic: '💜', rare: '💙', common: '⬜',
+};
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'dashboard' | 'items' | 'coins' | 'comms';
+type Tab = 'dashboard' | 'items' | 'coins' | 'comms' | 'users';
 
 interface Props {
   gachaItems:    GachaItem[];
@@ -61,6 +70,7 @@ interface Props {
   onGachaPullCostChange: (n: number) => void;
   /** 시작 코인만 저장했을 때 백엔드 전역 동기화를 트리거 */
   onStartingCoinsPersisted?: () => void;
+  githubToken?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -68,9 +78,19 @@ interface Props {
 export const AdminPanel = ({
   gachaItems, onUpdateItems, coins, onGrantCoins, totalPulls,
   events, onEventsChange, announcements, onAnnouncementsChange,
-  gachaPullCost, onGachaPullCostChange, onStartingCoinsPersisted,
+  gachaPullCost, onGachaPullCostChange, onStartingCoinsPersisted, githubToken,
 }: Props) => {
   const [tab,         setTab]         = useState<Tab>('dashboard');
+  // Users tab state
+  const [users,       setUsers]       = useState<UserSummary[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError,  setUsersError]  = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [editCoins,   setEditCoins]   = useState('');
+  const [editPulls,   setEditPulls]   = useState('');
+  const [rarityWeights, setRarityWeights] = useState<Record<GachaItem['rarity'], number>>({
+    legendary: 1, epic: 3, rare: 8, common: 15,
+  });
   const [ghUser,      setGhUser]      = useState(() => localStorage.getItem(GITHUB_ADMIN_KEY) ?? '');
   const [ghStats,     setGhStats]     = useState<GitHubStats | null>(null);
   const [ghLoading,   setGhLoading]   = useState(false);
@@ -131,14 +151,13 @@ export const AdminPanel = ({
   // ── Probability ──────────────────────────────────────────────────────────
 
   const handleProbChange = (id: string, val: number) => {
-    onUpdateItems(gachaItems.map(item => item.id === id ? { ...item, probability: val } : item));
+    const safe = Math.max(1, Math.floor(val) || 1);
+    onUpdateItems(gachaItems.map(item => item.id === id ? { ...item, probability: safe } : item));
   };
 
-  const handleNormalize = () => {
-    const total = gachaItems.reduce((s, i) => s + i.probability, 0);
-    if (total === 0) return;
-    onUpdateItems(gachaItems.map(i => ({ ...i, probability: parseFloat((i.probability / total).toFixed(4)) })));
-    showToast('✅ 확률이 정규화 되었습니다');
+  const handleApplyRarityWeights = () => {
+    onUpdateItems(gachaItems.map(i => ({ ...i, probability: rarityWeights[i.rarity] })));
+    showToast('✅ 등급별 가중치가 전체 적용되었습니다');
   };
 
   const handleDeleteItem = (id: string) => {
@@ -148,6 +167,13 @@ export const AdminPanel = ({
   };
 
   const probTotal = gachaItems.reduce((s, i) => s + i.probability, 0);
+
+  const rarityStats = RARITY_ORDER.map(r => {
+    const items = gachaItems.filter(i => i.rarity === r);
+    const weightSum = items.reduce((s, i) => s + i.probability, 0);
+    const pct = probTotal > 0 ? weightSum / probTotal * 100 : 0;
+    return { rarity: r, count: items.length, weightSum, pct };
+  });
   const parsedPullCostDraft = parseInt(pullCostDraft, 10);
   const pullCostDraftOk = !isNaN(parsedPullCostDraft) && parsedPullCostDraft >= 1;
 
@@ -227,6 +253,57 @@ export const AdminPanel = ({
     saveJSON(EVENTS_KEY, updated);
   };
 
+  // ── Users tab ─────────────────────────────────────────────────────────────
+
+  const loadUsers = useCallback(async () => {
+    if (!githubToken) return;
+    setUsersLoading(true); setUsersError(null);
+    try {
+      setUsers(await fetchAdminUsers(githubToken));
+    } catch (e) {
+      setUsersError(e instanceof Error ? e.message : '유저 목록 불러오기 실패');
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [githubToken]);
+
+  useEffect(() => {
+    if (tab === 'users') loadUsers();
+  }, [tab, loadUsers]);
+
+  const handleEditUser = (u: UserSummary) => {
+    setEditingUser(u.githubLogin);
+    setEditCoins(String(u.coins));
+    setEditPulls(String(u.totalPulls));
+  };
+
+  const handleSaveUser = async (login: string) => {
+    if (!githubToken) return;
+    const coins = parseInt(editCoins, 10);
+    const pulls = parseInt(editPulls, 10);
+    if (isNaN(coins) || isNaN(pulls) || coins < 0 || pulls < 0) return;
+    try {
+      await putAdminUser(githubToken, login, { coins, totalPulls: pulls });
+      setUsers(prev => prev.map(u => u.githubLogin === login ? { ...u, coins, totalPulls: pulls } : u));
+      setEditingUser(null);
+      showToast(`✅ ${login} 저장 완료`);
+    } catch (e) {
+      showToast(`❌ 저장 실패: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const handleDeleteUser = async (login: string) => {
+    if (!githubToken) return;
+    if (!confirm(`"${login}" 유저를 삭제할까요? 수집 아이템도 모두 삭제됩니다.`)) return;
+    try {
+      await deleteAdminUser(githubToken, login);
+      setUsers(prev => prev.filter(u => u.githubLogin !== login));
+      showToast(`🗑️ ${login} 삭제 완료`);
+    } catch (e) {
+      showToast(`❌ 삭제 실패: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const uniqueItems    = gachaItems.length;
@@ -250,6 +327,7 @@ export const AdminPanel = ({
           ['items',     '🎮', '아이템'],
           ['coins',     '💰', '코인'],
           ['comms',     '📢', '공지/이벤트'],
+          ['users',     '👥', '유저 관리'],
         ] as [Tab, string, string][]).map(([id, icon, label]) => (
           <button key={id}
             className={`${styles.tabBtn} ${tab === id ? styles.tabBtnActive : ''}`}
@@ -395,44 +473,103 @@ export const AdminPanel = ({
         {/* ── ITEMS ─────────────────────────────────────────────────── */}
         {tab === 'items' && (
           <>
+            {/* 등급별 가중치 프리셋 */}
             <div className={styles.card}>
-              <div className={styles.cardTitle}>
-                <span>🎮</span> 가챠 아이템 관리
-                <span style={{ marginLeft: 'auto', fontWeight: 400, fontSize: 12 }}>
-                  합계:{' '}
-                  <span className={Math.abs(probTotal - 1) < 0.01 ? styles.probTotalGood : styles.probTotalBad}>
-                    {(probTotal * 100).toFixed(1)}%
-                  </span>
-                </span>
-                <button className={styles.normalizeBtn} onClick={handleNormalize}>⚖️ 정규화</button>
-              </div>
-              <div className={styles.itemsGrid}>
-                {gachaItems.map(item => (
-                  <div key={item.id} className={styles.itemCard} style={{ borderColor: getRarityColor(item.rarity) + '44' }}>
-                    <img src={item.image} alt={item.name} className={styles.itemCardImg}
-                      onError={e => { (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="60" height="60"%3E%3Crect fill="%23333" width="60" height="60"/%3E%3C/svg%3E'; }}
-                    />
-                    <div className={styles.itemCardInfo}>
-                      <div className={styles.itemCardName} title={item.name}>{item.name}</div>
-                      <div className={styles.itemCardRarity} style={{ backgroundColor: getRarityColor(item.rarity) }}>
-                        {getRarityLabel(item.rarity)}
-                      </div>
-                      <div className={styles.probRow}>
-                        <input type="range" className={styles.probSlider}
-                          min={0} max={1} step={0.01}
-                          value={item.probability}
-                          onChange={e => handleProbChange(item.id, parseFloat(e.target.value))}
-                        />
-                        <span className={styles.probValue}>{(item.probability * 100).toFixed(0)}%</span>
-                      </div>
+              <div className={styles.cardTitle}><span>⚖️</span> 등급별 가중치 일괄 설정</div>
+              <div className={styles.rarityPresetGrid}>
+                {RARITY_ORDER.map(r => (
+                  <div key={r} className={styles.rarityPresetItem} style={{ borderColor: getRarityColor(r) + '55' }}>
+                    <div className={styles.rarityPresetLabel} style={{ color: getRarityColor(r) }}>
+                      {RARITY_EMOJI[r]} {getRarityLabel(r)}
                     </div>
-                    <div className={styles.itemCardActions}>
-                      <button className={styles.dangerBtn} onClick={() => handleDeleteItem(item.id)} title="삭제">🗑</button>
+                    <input
+                      type="number" min={1} step={1}
+                      className={styles.rarityWeightInput}
+                      value={rarityWeights[r]}
+                      onChange={e => setRarityWeights(prev => ({ ...prev, [r]: Math.max(1, parseInt(e.target.value) || 1) }))}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className={styles.presetHint}>
+                예시: 전설 1 · 에픽 3 · 레어 8 · 일반 15 → 가중치가 클수록 더 자주 뽑힘
+              </div>
+              <button className={styles.applyRarityBtn} onClick={handleApplyRarityWeights}>
+                ✅ 전체 카드에 적용
+              </button>
+            </div>
+
+            {/* 등급별 확률 분포 */}
+            <div className={styles.card}>
+              <div className={styles.cardTitle}><span>📊</span> 등급별 확률 분포
+                <span style={{ marginLeft: 'auto', fontWeight: 400, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                  총 가중치 합: <strong style={{ color: '#e8c870' }}>{probTotal.toLocaleString()}</strong>
+                </span>
+              </div>
+              <div className={styles.rarityStatList}>
+                {rarityStats.map(({ rarity, count, weightSum, pct }) => (
+                  <div key={rarity} className={styles.rarityStatRow}>
+                    <div className={styles.rarityStatLabel}>
+                      <span style={{ color: getRarityColor(rarity) }}>{RARITY_EMOJI[rarity]} {getRarityLabel(rarity)}</span>
+                      <span className={styles.rarityStatCount}>{count}종</span>
+                    </div>
+                    <div className={styles.rarityStatBar}>
+                      <div className={styles.rarityStatBarFill}
+                        style={{ width: `${pct}%`, backgroundColor: getRarityColor(rarity) + 'aa' }} />
+                    </div>
+                    <div className={styles.rarityStatNumbers}>
+                      <span className={styles.rarityStatWeight}>가중치 합 {weightSum.toLocaleString()}</span>
+                      <span className={styles.rarityStatPct} style={{ color: getRarityColor(rarity) }}>
+                        {pct.toFixed(2)}%
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
-              {gachaItems.length === 0 && <div className={styles.emptyMsg}>등록된 아이템이 없습니다. 아이템을 추가해주세요.</div>}
+            </div>
+
+            {/* 카드 목록 (등급별 그룹) */}
+            <div className={styles.card}>
+              <div className={styles.cardTitle}><span>🎮</span> 카드별 가중치 편집</div>
+              {RARITY_ORDER.map(rarity => {
+                const items = gachaItems.filter(i => i.rarity === rarity);
+                if (items.length === 0) return null;
+                return (
+                  <div key={rarity} className={styles.rarityGroup}>
+                    <div className={styles.rarityGroupHeader} style={{ borderColor: getRarityColor(rarity) + '55', color: getRarityColor(rarity) }}>
+                      {RARITY_EMOJI[rarity]} {getRarityLabel(rarity)} <span className={styles.rarityGroupCount}>({items.length}종)</span>
+                    </div>
+                    <div className={styles.itemsGrid}>
+                      {items.map(item => (
+                        <div key={item.id} className={styles.itemCard} style={{ borderColor: getRarityColor(item.rarity) + '44' }}>
+                          <img src={item.image} alt={item.name} className={styles.itemCardImg}
+                            onError={e => { (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="60" height="60"%3E%3Crect fill="%23333" width="60" height="60"/%3E%3C/svg%3E'; }}
+                          />
+                          <div className={styles.itemCardInfo}>
+                            <div className={styles.itemCardName} title={item.name}>{item.name}</div>
+                            <div className={styles.probRow}>
+                              <span className={styles.weightLabel}>가중치</span>
+                              <input
+                                type="number" min={1} step={1}
+                                className={styles.weightInput}
+                                value={item.probability}
+                                onChange={e => handleProbChange(item.id, parseInt(e.target.value))}
+                              />
+                              <span className={styles.probValue} style={{ color: getRarityColor(item.rarity) }}>
+                                {probTotal > 0 ? (item.probability / probTotal * 100).toFixed(2) : '0.00'}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className={styles.itemCardActions}>
+                            <button className={styles.dangerBtn} onClick={() => handleDeleteItem(item.id)} title="삭제">🗑</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {gachaItems.length === 0 && <div className={styles.emptyMsg}>등록된 아이템이 없습니다.</div>}
             </div>
           </>
         )}
@@ -628,6 +765,64 @@ export const AdminPanel = ({
             {/* Unused variable suppressor */}
             <div style={{ display: 'none' }}>{collectedTotal}</div>
           </>
+        )}
+
+        {/* ── USERS ─────────────────────────────────────────────────── */}
+        {tab === 'users' && (
+          <div className={styles.card}>
+            <div className={styles.cardTitle}>
+              <span>👥</span> 유저 관리
+              <button className={styles.fetchBtn} onClick={loadUsers} disabled={usersLoading} style={{ marginLeft: 'auto' }}>
+                {usersLoading ? '불러오는 중…' : '새로고침'}
+              </button>
+            </div>
+
+            {usersError && <div className={styles.errorMsg}>⚠️ {usersError}</div>}
+
+            {!usersLoading && users.length === 0 && !usersError && (
+              <div className={styles.emptyMsg}>등록된 유저가 없습니다.</div>
+            )}
+
+            <div className={styles.userList}>
+              {users.map(u => (
+                <div key={u.githubLogin} className={styles.userItem}>
+                  <div className={styles.userItemHeader}>
+                    <span className={styles.userItemLogin}>@{u.githubLogin}</span>
+                    <span className={styles.userItemMeta}>
+                      가입: {new Date(u.createdAt).toLocaleDateString('ko-KR')}
+                      {u.lastCheckinDate && ` · 출석: ${u.lastCheckinDate}`}
+                    </span>
+                  </div>
+
+                  {editingUser === u.githubLogin ? (
+                    <div className={styles.userEditRow}>
+                      <div className={styles.userEditField}>
+                        <label className={styles.formLabel}>코인</label>
+                        <input className={styles.formInput} type="number" min={0}
+                          value={editCoins} onChange={e => setEditCoins(e.target.value)} />
+                      </div>
+                      <div className={styles.userEditField}>
+                        <label className={styles.formLabel}>총 뽑기</label>
+                        <input className={styles.formInput} type="number" min={0}
+                          value={editPulls} onChange={e => setEditPulls(e.target.value)} />
+                      </div>
+                      <button className={styles.formSubmitBtn} onClick={() => handleSaveUser(u.githubLogin)}>저장</button>
+                      <button className={styles.deleteBtn} onClick={() => setEditingUser(null)}>취소</button>
+                    </div>
+                  ) : (
+                    <div className={styles.userItemStats}>
+                      <span className={styles.userStat}>🪙 {u.coins.toLocaleString()} 코인</span>
+                      <span className={styles.userStat}>🎰 {u.totalPulls.toLocaleString()} 회</span>
+                      <div className={styles.userItemActions}>
+                        <button className={styles.fetchBtn} onClick={() => handleEditUser(u)}>수정</button>
+                        <button className={styles.dangerBtn} onClick={() => handleDeleteUser(u.githubLogin)}>삭제</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 

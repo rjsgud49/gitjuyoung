@@ -70,6 +70,52 @@ export async function putApiMe(
   if (!r.ok) throw new Error(await r.text());
 }
 
+export async function postCheckin(token: string): Promise<{ alreadyDone: boolean; coinsAdded: number }> {
+  const r = await fetch('/api/checkin', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(`checkin ${r.status}`);
+  return r.json() as Promise<{ alreadyDone: boolean; coinsAdded: number }>;
+}
+
+export interface UserSummary {
+  id: number;
+  githubLogin: string;
+  githubId: number;
+  coins: number;
+  totalPulls: number;
+  lastCheckinDate: string | null;
+  createdAt: string;
+}
+
+export async function fetchAdminUsers(token: string): Promise<UserSummary[]> {
+  const r = await fetch('/api/admin/users', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(`admin/users ${r.status}`);
+  return r.json() as Promise<UserSummary[]>;
+}
+
+export async function putAdminUser(
+  token: string, login: string, data: { coins?: number; totalPulls?: number }
+): Promise<void> {
+  const r = await fetch(`/api/admin/users/${encodeURIComponent(login)}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+export async function deleteAdminUser(token: string, login: string): Promise<void> {
+  const r = await fetch(`/api/admin/users/${encodeURIComponent(login)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
 export async function putApiAdminGlobal(
   token: string,
   body: GlobalApiPayload

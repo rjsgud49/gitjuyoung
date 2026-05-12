@@ -27,6 +27,7 @@ import {
   fetchApiMe,
   putApiMe,
   putApiAdminGlobal,
+  postCheckin,
 } from './api/gameApi';
 import type { MeApiPayload } from './api/gameApi';
 import { DEFAULT_ITEMS, ITEMS_VERSION } from './data/defaultItems';
@@ -120,6 +121,7 @@ function App() {
   const [backendConnected, setBackendConnected] = useState(false);
   const [gachaItemsVersion, setGachaItemsVersion] = useState(ITEMS_VERSION);
   const [startingCoinsBump, setStartingCoinsBump] = useState(0);
+  const [checkinToast, setCheckinToast] = useState<number | null>(null);
 
   // ── GitHub auth state ──────────────────────────────────────────────────────
   const [githubToken,   setGithubToken]   = useState<string | null>(() => loadToken());
@@ -302,11 +304,39 @@ function App() {
     gachaItems, gachaItemsVersion, gachaPullCost, events, announcements, startingCoinsBump,
   ]);
 
+  // Daily attendance check-in
+  useEffect(() => {
+    if (!githubToken || !backendConnected) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem('lastCheckinDate') === today) return;
+    postCheckin(githubToken)
+      .then(({ alreadyDone, coinsAdded }) => {
+        if (!alreadyDone && coinsAdded > 0) {
+          setCoins(prev => prev + coinsAdded);
+          localStorage.setItem('lastCheckinDate', today);
+          setCheckinToast(coinsAdded);
+          setTimeout(() => setCheckinToast(null), 4000);
+        } else if (alreadyDone) {
+          localStorage.setItem('lastCheckinDate', today);
+        }
+      })
+      .catch(err => console.warn('[checkin] 실패', err));
+  }, [githubToken, backendConnected]);
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleGachaPull = (result: GachaResult) => {
     setCollectedItems(prev => addItemToCollection(result.item, prev));
     setTotalPulls(prev => prev + 1);
+  };
+
+  const handleGachaPullMulti = (results: GachaResult[]) => {
+    setCollectedItems(prev => {
+      let map = prev;
+      for (const r of results) map = addItemToCollection(r.item, map);
+      return map;
+    });
+    setTotalPulls(prev => prev + results.length);
   };
 
   const handleCoinSpend = (amount: number) => {
@@ -394,6 +424,7 @@ function App() {
           <CapsuleMachine
             items={gachaItems}
             onGachaPull={handleGachaPull}
+            onGachaPullMulti={handleGachaPullMulti}
             collectedItems={collectedItems}
             coins={coins}
             onCoinSpend={handleCoinSpend}
@@ -421,9 +452,21 @@ function App() {
             gachaPullCost={gachaPullCost}
             onGachaPullCostChange={setGachaPullCost}
             onStartingCoinsPersisted={() => setStartingCoinsBump(n => n + 1)}
+            githubToken={githubToken ?? undefined}
           />
         )}
       </main>
+
+      {/* Daily check-in toast */}
+      {checkinToast !== null && (
+        <div className="checkin-toast">
+          <span className="checkin-toast-icon">📅</span>
+          <div>
+            <div className="checkin-toast-title">출석 체크!</div>
+            <div className="checkin-toast-sub">+{checkinToast} 코인 지급되었습니다</div>
+          </div>
+        </div>
+      )}
 
       {/* GitHub coin modal */}
       <GitHubModal
