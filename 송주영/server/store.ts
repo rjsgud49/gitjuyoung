@@ -16,6 +16,7 @@ export interface CollectedItemJson {
   probability: number;
   count: number;
   firstAcquiredAt: string;
+  individualValue: number;
 }
 
 export interface UserState {
@@ -48,19 +49,18 @@ export interface UserSummary {
 
 // ─── Farm types ───────────────────────────────────────────────────────────────
 
-export interface FarmSlot {
-  index: number;
-  itemId: string | null;
-  itemName: string | null;
-  itemRarity: 'common' | 'rare' | 'epic' | 'legendary' | null;
-  itemImage: string | null;
-  productionRate: number | null;
-  placedAt: string | null;
+export interface FarmPlacedItem {
+  itemId: string;
+  itemName: string;
+  itemRarity: 'common' | 'rare' | 'epic' | 'legendary';
+  itemImage: string;
+  individualValue: number;
+  placedAt: string;
 }
 
 export interface FarmState {
-  slots: FarmSlot[];
-  maxSlots: number;
+  placedItems: FarmPlacedItem[];
+  maxCards: number;
   lastCollect: string | null;
   nextUpgradeCost: number;
 }
@@ -82,17 +82,6 @@ async function loadFarmConfig(conn: Awaited<ReturnType<typeof pool.getConnection
     epicMin: parseFloat(r.epic_min),     epicMax: parseFloat(r.epic_max),
     legendaryMin: parseFloat(r.legendary_min), legendaryMax: parseFloat(r.legendary_max),
   };
-}
-
-function randomRate(min: number, max: number): number {
-  return parseFloat((min + Math.random() * (max - min)).toFixed(2));
-}
-
-function rarityRange(cfg: FarmConfig, rarity: string): [number, number] {
-  if (rarity === 'legendary') return [cfg.legendaryMin, cfg.legendaryMax];
-  if (rarity === 'epic')      return [cfg.epicMin,      cfg.epicMax];
-  if (rarity === 'rare')      return [cfg.rareMin,      cfg.rareMax];
-  return [cfg.commonMin, cfg.commonMax];
 }
 
 export async function getFarmConfig(): Promise<FarmConfig> {
@@ -117,6 +106,8 @@ export async function saveFarmConfig(cfg: FarmConfig): Promise<void> {
   } finally { conn.release(); }
 }
 
+// ─── Farm CRUD ────────────────────────────────────────────────────────────────
+
 export async function getUserFarmState(login: string, githubId: number): Promise<FarmState> {
   const key = login.trim().toLowerCase();
   const conn = await pool.getConnection();
@@ -133,56 +124,153 @@ export async function getUserFarmState(login: string, githubId: number): Promise
     const u = (rows as any[])[0];
     if (!u) throw new Error('user not found');
 
-    const maxSlots = u.farm_slots ?? 3;
+    const maxCards = u.farm_slots ?? 3;
+
     const [farmRows] = await conn.query(
-      'SELECT * FROM user_farm WHERE user_id = ? ORDER BY slot_index', [u.id]
+      `SELECT uf.item_id, uf.item_name, uf.item_rarity, uf.item_image, uf.placed_at,
+              COALESCE(uci.individual_value, 1.00) AS individual_value
+       FROM user_farm uf
+       LEFT JOIN user_collected_items uci
+         ON uci.user_id = uf.user_id AND uci.item_id = uf.item_id
+       WHERE uf.user_id = ?
+       ORDER BY uf.placed_at`,
+      [u.id]
     ) as any[];
-    const slotMap = new Map<number, any>();
-    for (const r of farmRows as any[]) slotMap.set(r.slot_index, r);
 
-    const slots: FarmSlot[] = Array.from({ length: maxSlots }, (_, i) => {
-      const r = slotMap.get(i);
-      if (!r) return { index: i, itemId: null, itemName: null, itemRarity: null, itemImage: null, productionRate: null, placedAt: null };
-      return {
-        index: i, itemId: r.item_id, itemName: r.item_name, itemRarity: r.item_rarity,
-        itemImage: r.item_image, productionRate: parseFloat(r.production_rate),
-        placedAt: new Date(r.placed_at).toISOString(),
-      };
-    });
+    const placedItems: FarmPlacedItem[] = (farmRows as any[]).map(r => ({
+      itemId: r.item_id,
+      itemName: r.item_name,
+      itemRarity: r.item_rarity,
+      itemImage: r.item_image,
+      individualValue: parseFloat(r.individual_value),
+      placedAt: new Date(r.placed_at).toISOString(),
+    }));
 
-    const extraSlots = Math.max(0, maxSlots - 3);
-    return { slots, maxSlots, lastCollect: u.farm_last_collect ? new Date(u.farm_last_collect).toISOString() : null, nextUpgradeCost: (extraSlots + 1) * 200 };
+    const extraCards = Math.max(0, maxCards - 3);
+    return {
+      placedItems,
+      maxCards,
+      lastCollect: u.farm_last_collect ? new Date(u.farm_last_collect).toISOString() : null,
+      nextUpgradeCost: (extraCards + 1) * 200,
+    };
   } finally { conn.release(); }
 }
 
-export async function placeFarmCard(login: string, slotIndex: number, item: { id: string; name: string; rarity: string; image: string }): Promise<{ productionRate: number }> {
+export async function placeFarmCard(
+  login: string,
+  item: { id: string; name: string; rarity: string; image: string }
+): Promise<void> {
   const key = login.trim().toLowerCase();
   const conn = await pool.getConnection();
   try {
     const [rows] = await conn.query('SELECT id, farm_slots FROM users WHERE github_login = ?', [key]) as any[];
     const u = (rows as any[])[0];
-    if (!u || slotIndex < 0 || slotIndex >= (u.farm_slots ?? 3)) throw new Error('invalid slot');
-    const cfg = await loadFarmConfig(conn);
-    const [min, max] = rarityRange(cfg, item.rarity);
-    const rate = randomRate(min, max);
+    if (!u) throw new Error('user not found');
+
+    // Check if item is already placed
+    const [existing] = await conn.query(
+      'SELECT id FROM user_farm WHERE user_id = ? AND item_id = ?', [u.id, item.id]
+    ) as any[];
+    if ((existing as any[]).length > 0) throw new Error('이미 농장에 배치된 카드입니다');
+
+    // Check max cards limit
+    const [countRows] = await conn.query(
+      'SELECT COUNT(*) AS cnt FROM user_farm WHERE user_id = ?', [u.id]
+    ) as any[];
+    const currentCount = (countRows as any[])[0]?.cnt ?? 0;
+    if (currentCount >= (u.farm_slots ?? 3)) throw new Error('최대 배치 수에 도달했습니다');
+
     await conn.query(
-      `INSERT INTO user_farm (user_id,slot_index,item_id,item_name,item_rarity,item_image,production_rate)
-       VALUES (?,?,?,?,?,?,?)
-       ON DUPLICATE KEY UPDATE item_id=VALUES(item_id),item_name=VALUES(item_name),item_rarity=VALUES(item_rarity),item_image=VALUES(item_image),production_rate=VALUES(production_rate),placed_at=NOW()`,
-      [u.id, slotIndex, item.id, item.name, item.rarity, item.image, rate]
+      `INSERT INTO user_farm (user_id, item_id, item_name, item_rarity, item_image)
+       VALUES (?, ?, ?, ?, ?)`,
+      [u.id, item.id, item.name, item.rarity, item.image]
     );
-    return { productionRate: rate };
   } finally { conn.release(); }
 }
 
-export async function removeFarmCard(login: string, slotIndex: number): Promise<void> {
+export async function removeFarmCardByItemId(login: string, itemId: string): Promise<void> {
   const key = login.trim().toLowerCase();
   const conn = await pool.getConnection();
   try {
     const [rows] = await conn.query('SELECT id FROM users WHERE github_login = ?', [key]) as any[];
     const u = (rows as any[])[0];
-    if (u) await conn.query('DELETE FROM user_farm WHERE user_id = ? AND slot_index = ?', [u.id, slotIndex]);
+    if (u) await conn.query('DELETE FROM user_farm WHERE user_id = ? AND item_id = ?', [u.id, itemId]);
   } finally { conn.release(); }
+}
+
+const ENHANCE_BOOST: Record<string, number> = {
+  common: 0.3, rare: 0.6, epic: 1.2, legendary: 2.5,
+};
+
+export async function enhanceFarmCard(
+  login: string, itemId: string, copies: number
+): Promise<{ newValue: number }> {
+  if (copies < 1) throw new Error('copies must be >= 1');
+  const key = login.trim().toLowerCase();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [userRows] = await conn.query('SELECT id FROM users WHERE github_login = ? FOR UPDATE', [key]) as any[];
+    const u = (userRows as any[])[0];
+    if (!u) { await conn.rollback(); throw new Error('user not found'); }
+
+    const [itemRows] = await conn.query(
+      'SELECT `count`, item_rarity, individual_value FROM user_collected_items WHERE user_id = ? AND item_id = ?',
+      [u.id, itemId]
+    ) as any[];
+    const it = (itemRows as any[])[0];
+    if (!it) { await conn.rollback(); throw new Error('아이템을 소유하지 않습니다'); }
+    if (it.count <= copies) { await conn.rollback(); throw new Error('복제 카드가 부족합니다 (최소 1개 보유 필요)'); }
+
+    const boost = ENHANCE_BOOST[it.item_rarity] ?? 0.3;
+    const newValue = parseFloat((parseFloat(it.individual_value) + boost * copies).toFixed(2));
+
+    await conn.query(
+      'UPDATE user_collected_items SET `count` = `count` - ?, individual_value = ? WHERE user_id = ? AND item_id = ?',
+      [copies, newValue, u.id, itemId]
+    );
+    await conn.commit();
+    return { newValue };
+  } catch (e) { await conn.rollback(); throw e; }
+  finally { conn.release(); }
+}
+
+const DISMANTLE_COINS: Record<string, number> = {
+  common: 3, rare: 8, epic: 20, legendary: 50,
+};
+
+export async function dismantleDuplicates(
+  login: string, itemId: string, copies: number
+): Promise<{ coinsGained: number }> {
+  if (copies < 1) throw new Error('copies must be >= 1');
+  const key = login.trim().toLowerCase();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [userRows] = await conn.query('SELECT id FROM users WHERE github_login = ? FOR UPDATE', [key]) as any[];
+    const u = (userRows as any[])[0];
+    if (!u) { await conn.rollback(); throw new Error('user not found'); }
+
+    const [itemRows] = await conn.query(
+      'SELECT `count`, item_rarity FROM user_collected_items WHERE user_id = ? AND item_id = ?',
+      [u.id, itemId]
+    ) as any[];
+    const it = (itemRows as any[])[0];
+    if (!it) { await conn.rollback(); throw new Error('아이템을 소유하지 않습니다'); }
+    if (it.count <= copies) { await conn.rollback(); throw new Error('복제 카드가 부족합니다 (최소 1개 보유 필요)'); }
+
+    const coinsPerCopy = DISMANTLE_COINS[it.item_rarity] ?? 3;
+    const coinsGained = coinsPerCopy * copies;
+
+    await conn.query(
+      'UPDATE user_collected_items SET `count` = `count` - ? WHERE user_id = ? AND item_id = ?',
+      [copies, u.id, itemId]
+    );
+    await conn.query('UPDATE users SET coins = coins + ? WHERE id = ?', [coinsGained, u.id]);
+    await conn.commit();
+    return { coinsGained };
+  } catch (e) { await conn.rollback(); throw e; }
+  finally { conn.release(); }
 }
 
 export async function collectFarmCoins(login: string): Promise<{ coinsCollected: number }> {
@@ -193,11 +281,21 @@ export async function collectFarmCoins(login: string): Promise<{ coinsCollected:
     const [rows] = await conn.query('SELECT id, farm_last_collect FROM users WHERE github_login = ? FOR UPDATE', [key]) as any[];
     const u = (rows as any[])[0];
     if (!u) { await conn.rollback(); return { coinsCollected: 0 }; }
-    const [farmRows] = await conn.query('SELECT production_rate FROM user_farm WHERE user_id = ?', [u.id]) as any[];
-    const totalRate = (farmRows as any[]).reduce((s: number, r: any) => s + parseFloat(r.production_rate), 0);
+
+    const [farmRows] = await conn.query(
+      `SELECT COALESCE(uci.individual_value, 1.00) AS rate
+       FROM user_farm uf
+       LEFT JOIN user_collected_items uci
+         ON uci.user_id = uf.user_id AND uci.item_id = uf.item_id
+       WHERE uf.user_id = ?`,
+      [u.id]
+    ) as any[];
+
+    const totalRate = (farmRows as any[]).reduce((s: number, r: any) => s + parseFloat(r.rate), 0);
     const lastCollect = u.farm_last_collect ? new Date(u.farm_last_collect) : new Date(Date.now() - 3600000);
     const elapsedHours = Math.min((Date.now() - lastCollect.getTime()) / 3600000, 24);
     const coins = totalRate > 0 ? Math.floor(totalRate * elapsedHours) : 0;
+
     await conn.query('UPDATE users SET coins = coins + ?, farm_last_collect = NOW() WHERE id = ?', [coins, u.id]);
     await conn.commit();
     return { coinsCollected: coins };
@@ -205,7 +303,7 @@ export async function collectFarmCoins(login: string): Promise<{ coinsCollected:
   finally { conn.release(); }
 }
 
-export async function upgradeFarmSlots(login: string): Promise<{ newMaxSlots: number; cost: number }> {
+export async function upgradeFarmSlots(login: string): Promise<{ newMaxCards: number; cost: number }> {
   const key = login.trim().toLowerCase();
   const conn = await pool.getConnection();
   try {
@@ -213,16 +311,18 @@ export async function upgradeFarmSlots(login: string): Promise<{ newMaxSlots: nu
     const [rows] = await conn.query('SELECT id, coins, farm_slots FROM users WHERE github_login = ? FOR UPDATE', [key]) as any[];
     const u = (rows as any[])[0];
     if (!u) { await conn.rollback(); throw new Error('user not found'); }
-    const currentSlots = u.farm_slots ?? 3;
-    const cost = (Math.max(0, currentSlots - 3) + 1) * 200;
+    const currentCards = u.farm_slots ?? 3;
+    const cost = (Math.max(0, currentCards - 3) + 1) * 200;
     if (u.coins < cost) { await conn.rollback(); throw new Error('코인 부족'); }
-    const newSlots = currentSlots + 1;
-    await conn.query('UPDATE users SET coins = coins - ?, farm_slots = ? WHERE id = ?', [cost, newSlots, u.id]);
+    const newCards = currentCards + 1;
+    await conn.query('UPDATE users SET coins = coins - ?, farm_slots = ? WHERE id = ?', [cost, newCards, u.id]);
     await conn.commit();
-    return { newMaxSlots: newSlots, cost };
+    return { newMaxCards: newCards, cost };
   } catch (e) { await conn.rollback(); throw e; }
   finally { conn.release(); }
 }
+
+// ─── Global / User ────────────────────────────────────────────────────────────
 
 export async function getGlobalState(): Promise<GlobalState> {
   const conn = await pool.getConnection();
@@ -347,6 +447,7 @@ export async function getOrCreateUser(login: string, githubId: number): Promise<
         image: r.item_image, probability: r.item_probability,
         count: r.count,
         firstAcquiredAt: new Date(r.first_acquired_at).toISOString(),
+        individualValue: parseFloat(r.individual_value ?? '1.00'),
       })),
       githubData: u.github_username
         ? { username: u.github_username, totalCommits: u.github_total_commits,
@@ -358,9 +459,22 @@ export async function getOrCreateUser(login: string, githubId: number): Promise<
   }
 }
 
+function localDateStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function dbDateToStr(raw: unknown): string | null {
+  if (!raw) return null;
+  if (raw instanceof Date) {
+    return `${raw.getFullYear()}-${String(raw.getMonth() + 1).padStart(2, '0')}-${String(raw.getDate()).padStart(2, '0')}`;
+  }
+  return String(raw).slice(0, 10);
+}
+
 export async function checkAndDoCheckin(login: string, githubId: number): Promise<{ alreadyDone: boolean; coinsAdded: number }> {
   const key = login.trim().toLowerCase();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
   const conn = await pool.getConnection();
   try {
     const [cfgs] = await conn.query('SELECT starting_coins FROM global_config WHERE id = 1') as any[];
@@ -371,7 +485,6 @@ export async function checkAndDoCheckin(login: string, githubId: number): Promis
       [key, githubId, startingCoins]
     );
 
-    // FOR UPDATE로 중복 출석 경쟁 조건 차단
     await conn.beginTransaction();
     const [rows] = await conn.query(
       'SELECT last_checkin_date FROM users WHERE github_login = ? FOR UPDATE', [key]
@@ -379,8 +492,7 @@ export async function checkAndDoCheckin(login: string, githubId: number): Promis
     const u = (rows as any[])[0];
     if (!u) { await conn.rollback(); return { alreadyDone: false, coinsAdded: 0 }; }
 
-    const lastCheckin = u.last_checkin_date
-      ? new Date(u.last_checkin_date).toISOString().slice(0, 10) : null;
+    const lastCheckin = dbDateToStr(u.last_checkin_date);
     if (lastCheckin === today) {
       await conn.rollback();
       return { alreadyDone: true, coinsAdded: 0 };
@@ -412,8 +524,7 @@ export async function listUsers(): Promise<UserSummary[]> {
       githubId: r.github_id,
       coins: r.coins,
       totalPulls: r.total_pulls,
-      lastCheckinDate: r.last_checkin_date
-        ? new Date(r.last_checkin_date).toISOString().slice(0, 10) : null,
+      lastCheckinDate: dbDateToStr(r.last_checkin_date),
       createdAt: new Date(r.created_at).toISOString(),
     }));
   } finally {
@@ -476,11 +587,12 @@ export async function saveUser(user: UserState): Promise<void> {
     if (user.collectedItems.length > 0) {
       await conn.query(
         `INSERT INTO user_collected_items
-           (user_id, item_id, item_name, item_rarity, item_image, item_probability, count, first_acquired_at)
+           (user_id, item_id, item_name, item_rarity, item_image, item_probability, count, first_acquired_at, individual_value)
          VALUES ?`,
         [user.collectedItems.map(i => [
           userId, i.id, i.name, i.rarity, i.image, i.probability, i.count,
           new Date(i.firstAcquiredAt),
+          i.individualValue ?? 1.00,
         ])]
       );
     }

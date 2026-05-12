@@ -1,249 +1,344 @@
-.collectionContainer {
-  padding: 40px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* ── Book page ───────────────────────────────────────────────────────────────── */
+
+.bookPage {
   min-height: 100vh;
-  font-family: 'Arial', sans-serif;
+  background:
+    radial-gradient(ellipse at 50% 0%, #2a1500 0%, #1a0d00 50%, #0d0600 100%);
+  padding: 32px 16px 60px;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #c8a050;
 }
 
-.header {
-  max-width: 1200px;
-  margin: 0 auto 40px;
-  background: white;
-  border-radius: 20px;
-  padding: 30px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+/* ── Book cover ──────────────────────────────────────────────────────────────── */
+
+.bookCover {
+  max-width: 860px;
+  margin: 0 auto 28px;
+  text-align: center;
+  padding: 32px 24px 24px;
+  background:
+    linear-gradient(180deg, rgba(200,160,80,0.04) 0%, transparent 100%);
+  border: 1px solid rgba(200,160,80,0.2);
+  border-radius: 4px;
+  position: relative;
 }
 
-.header h1 {
-  margin: 0 0 20px 0;
-  color: #333;
-  font-size: 32px;
+.bookCover::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(200,160,80,0.08);
+  border-radius: 2px;
+  pointer-events: none;
 }
 
-.progressInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.bookOrnamentTop,
+.bookOrnamentBot {
+  font-size: 13px;
+  letter-spacing: 6px;
+  color: rgba(200,160,80,0.45);
+  margin: 0 0 6px;
 }
 
-.progressBar {
-  width: 100%;
-  height: 30px;
-  background: #e0e0e0;
-  border-radius: 15px;
+.bookTitle {
+  font-size: 36px;
+  font-weight: 700;
+  color: #e8c87a;
+  margin: 8px 0 4px;
+  letter-spacing: 4px;
+  text-shadow: 0 0 24px rgba(200,160,80,0.4), 0 2px 8px rgba(0,0,0,0.8);
+}
+
+.bookSubtitle {
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(200,160,80,0.45);
+  letter-spacing: 3px;
+  margin-bottom: 8px;
+}
+
+/* ── Completion scroll ───────────────────────────────────────────────────────── */
+
+.scrollContainer {
+  margin: 20px auto 0;
+  max-width: 480px;
+}
+
+.scrollTrack {
+  height: 8px;
+  background: rgba(200,160,80,0.1);
+  border: 1px solid rgba(200,160,80,0.2);
+  border-radius: 4px;
   overflow: hidden;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+  margin-bottom: 6px;
 }
 
-.progressFill {
+.scrollFill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  transition: width 0.5s ease;
-  box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+  background: linear-gradient(90deg, #8b6914, #c8a050, #e8c87a);
+  border-radius: 4px;
+  transition: width 0.6s ease;
+  box-shadow: 0 0 8px rgba(200,160,80,0.5);
 }
 
-.progressText {
-  font-size: 14px;
-  color: #666;
-  font-weight: bold;
-  text-align: right;
+.scrollText {
+  font-size: 12px;
+  color: rgba(200,160,80,0.6);
+  font-style: italic;
+  letter-spacing: 1px;
 }
 
-/* 통계 섹션 */
-.statsSection {
-  max-width: 1200px;
-  margin: 0 auto 40px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 15px;
+/* ── Stats row ───────────────────────────────────────────────────────────────── */
+
+.statsRow {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
 }
 
-.statItem {
-  background: white;
-  border-radius: 15px;
-  padding: 20px;
+.statChip {
   display: flex;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid;
+  border-radius: 20px;
+  background: rgba(0,0,0,0.3);
+  font-size: 12px;
 }
 
-.statItem:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-}
-
-.statColor {
-  width: 30px;
-  height: 30px;
+.statDot {
+  width: 8px; height: 8px;
   border-radius: 50%;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
 .statLabel {
-  flex: 1;
-  font-weight: 600;
-  color: #333;
+  color: rgba(200,160,80,0.7);
+  font-size: 11px;
 }
 
 .statCount {
-  font-size: 20px;
-  font-weight: bold;
-  color: #667eea;
+  font-weight: 700;
+  font-size: 13px;
 }
 
-/* 아이템 그리드 */
-.itemsGrid {
-  max-width: 1200px;
+/* ── Filter tabs ─────────────────────────────────────────────────────────────── */
+
+.filterRow {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 860px;
+  margin: 0 auto 24px;
+}
+
+.filterTab {
+  padding: 6px 16px;
+  background: rgba(200,160,80,0.05);
+  border: 1px solid rgba(200,160,80,0.2);
+  border-radius: 20px;
+  color: rgba(200,160,80,0.55);
+  font-family: Georgia, serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.filterTab:hover {
+  background: rgba(200,160,80,0.1);
+  color: #c8a050;
+}
+
+.filterTabActive {
+  background: rgba(200,160,80,0.12);
+  border-color: rgba(200,160,80,0.5);
+  color: #e8c87a;
+  box-shadow: 0 0 12px rgba(200,160,80,0.2);
+}
+
+/* ── Grid ────────────────────────────────────────────────────────────────────── */
+
+.grid {
+  max-width: 860px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
 }
 
-.collectionItem {
-  background: white;
-  border-radius: 20px;
-  overflow: hidden;
-  border: 4px solid;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
+.empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: rgba(200,160,80,0.3);
+  font-size: 15px;
+  font-style: italic;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  align-items: center;
+  gap: 12px;
 }
 
-.collectionItem:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+.emptyGlyph {
+  font-size: 48px;
+  opacity: 0.4;
 }
 
-.itemImageContainer {
-  width: 100%;
-  height: 200px;
+/* ── Card ────────────────────────────────────────────────────────────────────── */
+
+.card {
+  position: relative;
+  background:
+    linear-gradient(180deg,
+      rgba(200,160,80,0.06) 0%,
+      rgba(100,60,10,0.04) 100%
+    );
+  border: 1px solid rgba(var(--rarity-color-rgb, 200,160,80), 0.25);
+  border-color: color-mix(in srgb, var(--rarity-color, #c8a050) 35%, transparent);
+  border-radius: 4px;
   overflow: hidden;
-  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.5),
+    0 0 20px color-mix(in srgb, var(--rarity-color, #c8a050) 20%, transparent);
+}
+
+/* Ornate corner decorations */
+.cardCornerTL,
+.cardCornerTR,
+.cardCornerBL,
+.cardCornerBR {
+  position: absolute;
+  width: 12px; height: 12px;
+  border-color: color-mix(in srgb, var(--rarity-color, #c8a050) 50%, transparent);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.cardCornerTL { top: 3px; left: 3px;  border-width: 1px 0 0 1px; }
+.cardCornerTR { top: 3px; right: 3px; border-width: 1px 1px 0 0; }
+.cardCornerBL { bottom: 3px; left: 3px;  border-width: 0 0 1px 1px; }
+.cardCornerBR { bottom: 3px; right: 3px; border-width: 0 1px 1px 0; }
+
+.cardImageWrap {
+  width: 100%;
+  aspect-ratio: 1;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(200,160,80,0.05) 0%, rgba(0,0,0,0.3) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
-.itemImage {
+.cardImage {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s;
 }
 
-.collectionItem:hover .itemImage {
-  transform: scale(1.1);
+.card:hover .cardImage {
+  transform: scale(1.06);
 }
 
-.itemDetails {
-  padding: 20px;
-  flex: 1;
+.cardBody {
+  padding: 10px;
+  border-top: 1px solid rgba(200,160,80,0.1);
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
-.itemName {
-  margin: 0 0 12px 0;
-  color: #333;
-  font-size: 18px;
-  font-weight: bold;
+.cardName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e8c87a;
+  line-height: 1.3;
+  text-align: center;
 }
 
-.rarityTag {
-  align-self: flex-start;
-  padding: 6px 12px;
-  border-radius: 50px;
-  color: white;
-  font-weight: bold;
-  font-size: 12px;
+.cardRarityTag {
+  align-self: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border: 1px solid;
+  padding: 1px 8px;
+  border-radius: 10px;
   text-transform: uppercase;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-  margin-bottom: 12px;
 }
 
-.itemStats {
+.cardStats {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid #eee;
+  gap: 3px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(200,160,80,0.08);
 }
 
-.stat {
+.cardStat {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
 }
 
-.label {
-  color: #999;
-  font-weight: 600;
+.cardStatLabel {
+  font-size: 10px;
+  color: rgba(200,160,80,0.45);
+  font-style: italic;
 }
 
-.value {
-  color: #333;
-  font-weight: bold;
+.cardStatValue {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(200,160,80,0.85);
 }
 
-/* 빈 상태 */
-.emptyState {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  background: white;
-  border-radius: 20px;
+/* ── Unknown (uncollected) card ──────────────────────────────────────────────── */
+
+.cardUnknown {
+  opacity: 0.6;
+}
+
+.unknownSilhouette {
+  font-size: 56px;
+  color: rgba(200,160,80,0.08);
+  line-height: 1;
+  font-family: Georgia, serif;
+  padding: 24px 0;
+  user-select: none;
+}
+
+.unknownText {
+  font-size: 11px;
+  color: rgba(200,160,80,0.3);
+  font-style: italic;
   text-align: center;
-  color: #999;
+  margin-top: 4px;
 }
 
-.emptyIcon {
-  font-size: 60px;
-  margin-bottom: 20px;
-}
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
 
-.emptyState p {
-  margin: 5px 0;
-  font-size: 16px;
-}
-
-.emptyState p:first-of-type {
-  font-size: 18px;
-  color: #666;
-  font-weight: bold;
-}
-
-/* 반응형 */
-@media (max-width: 768px) {
-  .itemsGrid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 15px;
+@media (max-width: 600px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
   }
 
-  .header h1 {
-    font-size: 24px;
-  }
+  .bookTitle { font-size: 26px; letter-spacing: 2px; }
 
-  .statsSection {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .itemsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .statsSection {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .statsRow { gap: 6px; }
 }

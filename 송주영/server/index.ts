@@ -15,9 +15,11 @@ import {
   adminDeleteUser,
   getUserFarmState,
   placeFarmCard,
-  removeFarmCard,
+  removeFarmCardByItemId,
   collectFarmCoins,
   upgradeFarmSlots,
+  enhanceFarmCard,
+  dismantleDuplicates,
   getFarmConfig,
   saveFarmConfig,
   type GlobalState,
@@ -219,21 +221,17 @@ app.put('/api/farm/place', async (req, res) => {
   const token = ghToken(req);
   const authUser = await verifyGithubToken(token);
   if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
-  const { slotIndex, id, name, rarity, image } = req.body as {
-    slotIndex: number; id: string; name: string; rarity: string; image: string;
-  };
-  if (typeof slotIndex !== 'number' || !id || !name || !rarity || !image) {
-    res.status(400).json({ error: 'bad_request' }); return;
-  }
-  try { res.json(await placeFarmCard(authUser.login, slotIndex, { id, name, rarity, image })); }
+  const { id, name, rarity, image } = req.body as { id: string; name: string; rarity: string; image: string };
+  if (!id || !name || !rarity || !image) { res.status(400).json({ error: 'bad_request' }); return; }
+  try { await placeFarmCard(authUser.login, { id, name, rarity, image }); res.json({ ok: true }); }
   catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
 });
 
-app.delete('/api/farm/slot/:index', async (req, res) => {
+app.delete('/api/farm/item/:itemId', async (req, res) => {
   const token = ghToken(req);
   const authUser = await verifyGithubToken(token);
   if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
-  try { await removeFarmCard(authUser.login, parseInt(req.params.index, 10)); res.json({ ok: true }); }
+  try { await removeFarmCardByItemId(authUser.login, req.params.itemId); res.json({ ok: true }); }
   catch { res.status(500).json({ error: 'db_error' }); }
 });
 
@@ -250,6 +248,26 @@ app.post('/api/farm/upgrade', async (req, res) => {
   const authUser = await verifyGithubToken(token);
   if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
   try { res.json(await upgradeFarmSlots(authUser.login)); }
+  catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
+});
+
+app.post('/api/farm/enhance', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  const { itemId, copies } = req.body as { itemId: string; copies: number };
+  if (!itemId || typeof copies !== 'number' || copies < 1) { res.status(400).json({ error: 'bad_request' }); return; }
+  try { res.json(await enhanceFarmCard(authUser.login, itemId, Math.floor(copies))); }
+  catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
+});
+
+app.post('/api/farm/dismantle', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  const { itemId, copies } = req.body as { itemId: string; copies: number };
+  if (!itemId || typeof copies !== 'number' || copies < 1) { res.status(400).json({ error: 'bad_request' }); return; }
+  try { res.json(await dismantleDuplicates(authUser.login, itemId, Math.floor(copies))); }
   catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
 });
 

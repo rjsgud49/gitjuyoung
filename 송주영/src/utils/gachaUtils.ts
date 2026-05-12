@@ -34,6 +34,17 @@ export function simulateGacha(
   };
 }
 
+function getIndividualValue(rarity: GachaItem['rarity']): number {
+  const ranges: Record<GachaItem['rarity'], [number, number]> = {
+    common:    [1.0,  3.0],
+    rare:      [3.0,  7.0],
+    epic:      [7.0,  15.0],
+    legendary: [15.0, 30.0],
+  };
+  const [min, max] = ranges[rarity];
+  return parseFloat((min + Math.random() * (max - min)).toFixed(2));
+}
+
 /**
  * 도감에 아이템을 추가하거나 업데이트합니다
  */
@@ -51,6 +62,7 @@ export function addItemToCollection(
       ...item,
       count: 1,
       firstAcquiredAt: new Date(),
+      individualValue: getIndividualValue(item.rarity),
     });
   }
 

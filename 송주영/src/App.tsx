@@ -357,7 +357,7 @@ function App() {
         {currentView === 'collection' && (
           <GachaCollection
             collectedItems={collectedItems}
-            totalItems={gachaItems.length}
+            gachaItems={gachaItems}
           />
         )}
         {currentView === 'farm' && (
@@ -368,6 +368,7 @@ function App() {
             gachaItems={gachaItems}
             coins={coins}
             onCoinsChange={setCoins}
+            onCollectedItemsChange={setCollectedItems}
           />
         )}
         {currentView === 'admin' && isAdminGitHubLogin(githubUser?.login) && (

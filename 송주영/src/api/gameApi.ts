@@ -22,6 +22,7 @@ export interface MeApiPayload {
     probability: number;
     count: number;
     firstAcquiredAt: string;
+    individualValue: number;
   }>;
   githubData: { username: string; totalCommits: number; fetchedAt: string } | null;
 }
@@ -118,19 +119,18 @@ export async function deleteAdminUser(token: string, login: string): Promise<voi
 
 // ─── Farm API ────────────────────────────────────────────────────────────────
 
-export interface FarmSlot {
-  index: number;
-  itemId: string | null;
-  itemName: string | null;
-  itemRarity: string | null;
-  itemImage: string | null;
-  productionRate: number | null;
-  placedAt: string | null;
+export interface FarmPlacedItem {
+  itemId: string;
+  itemName: string;
+  itemRarity: 'common' | 'rare' | 'epic' | 'legendary';
+  itemImage: string;
+  individualValue: number;
+  placedAt: string;
 }
 
 export interface FarmStateData {
-  slots: FarmSlot[];
-  maxSlots: number;
+  placedItems: FarmPlacedItem[];
+  maxCards: number;
   lastCollect: string | null;
   nextUpgradeCost: number;
 }
@@ -148,18 +148,17 @@ export async function fetchFarm(token: string): Promise<FarmStateData> {
   return r.json() as Promise<FarmStateData>;
 }
 
-export async function putFarmPlace(token: string, slotIndex: number, item: { id: string; name: string; rarity: string; image: string }): Promise<{ productionRate: number }> {
+export async function putFarmPlace(token: string, item: { id: string; name: string; rarity: string; image: string }): Promise<void> {
   const r = await fetch('/api/farm/place', {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slotIndex, ...item }),
+    body: JSON.stringify(item),
   });
   if (!r.ok) throw new Error(await r.text());
-  return r.json() as Promise<{ productionRate: number }>;
 }
 
-export async function deleteFarmSlot(token: string, slotIndex: number): Promise<void> {
-  const r = await fetch(`/api/farm/slot/${slotIndex}`, {
+export async function deleteFarmItem(token: string, itemId: string): Promise<void> {
+  const r = await fetch(`/api/farm/item/${encodeURIComponent(itemId)}`, {
     method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error(await r.text());
@@ -173,12 +172,36 @@ export async function postFarmCollect(token: string): Promise<{ coinsCollected: 
   return r.json() as Promise<{ coinsCollected: number }>;
 }
 
-export async function postFarmUpgrade(token: string): Promise<{ newMaxSlots: number; cost: number }> {
+export async function postFarmUpgrade(token: string): Promise<{ newMaxCards: number; cost: number }> {
   const r = await fetch('/api/farm/upgrade', {
     method: 'POST', headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error(await r.text());
-  return r.json() as Promise<{ newMaxSlots: number; cost: number }>;
+  return r.json() as Promise<{ newMaxCards: number; cost: number }>;
+}
+
+export async function postFarmEnhance(
+  token: string, itemId: string, copies: number
+): Promise<{ newValue: number }> {
+  const r = await fetch('/api/farm/enhance', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemId, copies }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ newValue: number }>;
+}
+
+export async function postFarmDismantle(
+  token: string, itemId: string, copies: number
+): Promise<{ coinsGained: number }> {
+  const r = await fetch('/api/farm/dismantle', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemId, copies }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ coinsGained: number }>;
 }
 
 export async function fetchAdminFarmConfig(token: string): Promise<FarmConfig> {

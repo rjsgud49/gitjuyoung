@@ -1,302 +1,481 @@
-/* =========================================
-   FARM LAYOUT
-   ========================================= */
+/* ── Page ──────────────────────────────────────────────────────────────────── */
 
-.farmContainer {
-  min-height: calc(100vh - 62px);
-  background: linear-gradient(170deg, #0a1408 0%, #0d1a08 55%, #071004 100%);
-  display: flex;
-  flex-direction: column;
-  padding: 24px 28px;
-  max-width: 960px;
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
+.farmPage {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #1a2e10 0%, #0e1a08 100%);
+  padding: 24px 16px 48px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #e8f5e9;
 }
 
-/* ── Header ──────────────────────────────── */
+.centerMsg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+  color: #81c784;
+  font-size: 16px;
+}
+
+.centerMsgIcon { font-size: 48px; }
+
+.spinner {
+  width: 40px; height: 40px;
+  border: 4px solid rgba(129,199,132,0.2);
+  border-top-color: #81c784;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
 
 .farmHeader {
-  margin-bottom: 20px;
+  text-align: center;
+  margin-bottom: 16px;
 }
 
 .farmTitle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
-  color: #a8e66e;
+  color: #a5d6a7;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
   letter-spacing: 1px;
 }
 
-.farmTitleIcon {
-  font-size: 26px;
-}
-
-.farmHeaderSub {
+.farmSub {
   font-size: 13px;
-  color: rgba(168, 230, 110, 0.5);
+  color: #66bb6a;
   margin-top: 4px;
 }
 
-/* ── Earnings panel ──────────────────────── */
+/* ── Earnings panel ──────────────────────────────────────────────────────────── */
 
-.farmEarnings {
-  background: linear-gradient(135deg, rgba(30, 60, 15, 0.8) 0%, rgba(20, 45, 10, 0.8) 100%);
-  border: 1px solid rgba(100, 200, 50, 0.25);
-  border-radius: 14px;
-  padding: 20px 24px;
+.earningsPanel {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(102,187,106,0.25);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 0 auto 20px;
+  max-width: 860px;
+  backdrop-filter: blur(4px);
 }
 
-.earningsMain {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+.earningsLeft { display: flex; flex-direction: column; gap: 2px; }
 
-.earningsLabel {
-  font-size: 12px;
-  color: rgba(168, 230, 110, 0.6);
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
+.earningsLabel { font-size: 12px; color: #81c784; text-transform: uppercase; letter-spacing: 1px; }
 
-.earningsValue {
-  font-size: 30px;
-  font-weight: 900;
-  color: #f0e870;
-  letter-spacing: 1px;
-}
+.earningsValue { font-size: 28px; font-weight: 800; color: #fff176; }
 
-.earningsRate {
-  font-size: 13px;
-  color: rgba(168, 230, 110, 0.5);
-}
+.earningsRate { font-size: 12px; color: #a5d6a7; }
 
 .harvestBtn {
-  background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  color: #fff;
   border: none;
-  border-radius: 10px;
-  padding: 12px 24px;
+  border-radius: 8px;
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
-  white-space: nowrap;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-.harvestBtn:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: translateY(-1px);
+.harvestBtn:hover:not(:disabled) { background: linear-gradient(135deg, #4caf50, #388e3c); transform: translateY(-1px); }
+.harvestBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* ── Fence ───────────────────────────────────────────────────────────────────── */
+
+.fenceContainer {
+  max-width: 860px;
+  margin: 0 auto 20px;
 }
 
-.harvestBtn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.fenceTopRail {
+  height: 32px;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      #8d5524 0px, #8d5524 20px,
+      #6d4c41 20px, #6d4c41 22px,
+      transparent 22px, transparent 62px
+    ),
+    linear-gradient(180deg, #8d5524 0%, #6d4c41 100%);
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
-/* ── Slots section ───────────────────────── */
-
-.slotsSection {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(100, 200, 50, 0.15);
-  border-radius: 14px;
-  padding: 20px 24px;
+.fenceBottomRail {
+  height: 32px;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      #8d5524 0px, #8d5524 20px,
+      #6d4c41 20px, #6d4c41 22px,
+      transparent 22px, transparent 62px
+    ),
+    linear-gradient(180deg, #6d4c41 0%, #4e342e 100%);
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(0,0,0,0.2);
 }
 
-.slotsSectionTitle {
-  font-size: 14px;
-  font-weight: 700;
-  color: rgba(168, 230, 110, 0.7);
-  margin-bottom: 16px;
-  letter-spacing: 0.5px;
-}
-
-.slotsGrid {
+.fenceMiddle {
   display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-bottom: 20px;
 }
 
-/* ── Slot card (occupied) ────────────────── */
+.fenceSideRail {
+  width: 28px;
+  flex-shrink: 0;
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      #8d5524 0px, #8d5524 20px,
+      #6d4c41 20px, #6d4c41 22px,
+      transparent 22px, transparent 62px
+    ),
+    linear-gradient(90deg, #6d4c41, #8d5524);
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.3);
+}
 
-.slotCard {
+.farmField {
+  flex: 1;
+  min-height: 320px;
   position: relative;
-  width: 130px;
-  background: linear-gradient(160deg, rgba(20, 40, 12, 0.95) 0%, rgba(12, 25, 8, 0.95) 100%);
-  border: 1.5px solid rgba(100, 200, 50, 0.3);
-  border-radius: 12px;
-  padding: 12px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  transition: transform 0.15s;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 80%, rgba(0,80,0,0.3) 0%, transparent 70%),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px, transparent 18px,
+      rgba(0,0,0,0.04) 18px, rgba(0,0,0,0.04) 19px
+    ),
+    linear-gradient(180deg, #4caf50 0%, #388e3c 40%, #2e7d32 100%);
 }
 
-.slotCard:hover {
-  transform: translateY(-2px);
-}
-
-.slotCardRarity {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.slotCardImg {
-  width: 72px;
-  height: 72px;
-  object-fit: contain;
-  border-radius: 8px;
-}
-
-.slotCardName {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
-  font-weight: 600;
-  text-align: center;
-  word-break: break-word;
-}
-
-.slotCardRate {
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.slotRemoveBtn {
+.farmField::after {
+  content: '';
   position: absolute;
-  top: 6px;
-  right: 6px;
-  background: rgba(255, 80, 80, 0.15);
-  border: 1px solid rgba(255, 80, 80, 0.3);
-  color: rgba(255, 100, 100, 0.8);
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
+  inset: 0;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.25);
+  pointer-events: none;
 }
 
-.slotRemoveBtn:hover {
-  background: rgba(255, 80, 80, 0.4);
-  color: #fff;
-}
-
-/* ── Slot card (empty) ───────────────────── */
-
-.slotCardEmpty {
-  width: 130px;
-  height: 160px;
-  background: rgba(20, 40, 12, 0.4);
-  border: 2px dashed rgba(100, 200, 50, 0.2);
-  border-radius: 12px;
+.emptyField {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.emptyFieldIcon { font-size: 40px; opacity: 0.6; }
+
+/* ── Bouncing card ───────────────────────────────────────────────────────────── */
+
+.bouncingCard {
+  position: absolute;
+  top: 0; left: 0;
+  width: 72px;
+  height: 72px;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  will-change: transform;
+  transition: none;
+  z-index: 2;
 }
 
-.slotCardEmpty:hover {
-  border-color: rgba(100, 200, 50, 0.5);
-  background: rgba(30, 60, 15, 0.5);
+.bouncingCardImg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
 }
 
-.emptySlotQuestion {
-  font-size: 36px;
-  color: rgba(168, 230, 110, 0.25);
-  font-weight: 900;
+.bouncingCardBadge {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  padding: 1px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 
-.emptySlotLabel {
-  font-size: 12px;
-  color: rgba(168, 230, 110, 0.35);
-  font-weight: 600;
-}
+/* ── Controls ────────────────────────────────────────────────────────────────── */
 
-/* ── Upgrade row ─────────────────────────── */
-
-.upgradeRow {
+.controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  max-width: 860px;
+  margin: 0 auto 16px;
   gap: 12px;
-  border-top: 1px solid rgba(100, 200, 50, 0.12);
-  padding-top: 16px;
+  flex-wrap: wrap;
 }
 
-.upgradeInfo {
-  font-size: 13px;
-  color: rgba(168, 230, 110, 0.55);
+.controlsLeft, .controlsRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.upgradeInfo strong {
-  color: #f0e870;
+.slotInfo {
+  font-size: 14px;
+  color: #a5d6a7;
 }
+
+.addCardBtn {
+  padding: 8px 18px;
+  background: linear-gradient(135deg, #1565c0, #0d47a1);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+
+.addCardBtn:hover:not(:disabled) { background: linear-gradient(135deg, #1976d2, #1565c0); transform: translateY(-1px); }
+.addCardBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.upgradeInfo { font-size: 13px; color: #a5d6a7; }
 
 .upgradeBtn {
-  background: linear-gradient(135deg, #2196f3 0%, #0d47a1 100%);
-  border: none;
-  border-radius: 10px;
-  padding: 10px 20px;
-  font-size: 13px;
-  font-weight: 700;
+  padding: 8px 18px;
+  background: linear-gradient(135deg, #7b1fa2, #4a148c);
   color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  transition: all 0.2s;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
 }
 
-.upgradeBtn:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: translateY(-1px);
+.upgradeBtn:hover:not(:disabled) { background: linear-gradient(135deg, #8e24aa, #6a1b9a); }
+.upgradeBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Card list ───────────────────────────────────────────────────────────────── */
+
+.cardList {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.upgradeBtn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.cardListItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid;
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
 }
 
-/* ── Card Picker modal ───────────────────── */
+.cardListItem:hover { background: rgba(255,255,255,0.05); }
 
-.pickerOverlay {
+.cardListImg {
+  width: 44px; height: 44px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.cardListInfo { flex: 1; min-width: 0; }
+
+.cardListName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8f5e9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardListRarity { font-size: 11px; font-weight: 700; margin-top: 2px; }
+
+.cardListRight { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+
+.cardListValue { font-size: 13px; color: #fff176; font-weight: 700; }
+
+.cardListDupes { font-size: 11px; color: #80cbc4; }
+
+/* ── Modals ──────────────────────────────────────────────────────────────────── */
+
+.modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  z-index: 1000;
+  background: rgba(0,0,0,0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
-.pickerModal {
-  background: linear-gradient(160deg, #111a08 0%, #0a1204 100%);
-  border: 1px solid rgba(100, 200, 50, 0.25);
+.modalClose {
+  position: absolute;
+  top: 12px; right: 14px;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #ccc;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.modalClose:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+.detailModal {
+  position: relative;
+  background: #1a2e10;
+  border: 1px solid rgba(102,187,106,0.3);
   border-radius: 16px;
-  width: min(780px, 100%);
+  padding: 28px 24px 20px;
+  max-width: 420px;
+  width: 90%;
+  color: #e8f5e9;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.detailHeader {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.detailImg {
+  width: 88px; height: 88px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.detailInfo { display: flex; flex-direction: column; gap: 4px; }
+
+.detailName { font-size: 18px; font-weight: 700; }
+
+.detailRarity { font-size: 12px; font-weight: 700; }
+
+.detailValue { font-size: 14px; color: #a5d6a7; }
+
+.detailOwned { font-size: 12px; color: #80cbc4; }
+
+.detailSection {
+  background: rgba(0,0,0,0.25);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.detailSectionTitle { font-size: 13px; font-weight: 600; color: #a5d6a7; margin-bottom: 8px; }
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detailInput {
+  width: 56px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
+
+.detailInput:disabled { opacity: 0.4; }
+
+.detailHint { font-size: 13px; color: #a5d6a7; flex: 1; }
+
+.detailWarn { font-size: 12px; color: #ef9a9a; margin-top: 6px; }
+
+.enhanceBtn {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #f57f17, #e65100);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.enhanceBtn:hover:not(:disabled) { opacity: 0.85; }
+.enhanceBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.dismantleBtn {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #37474f, #263238);
+  color: #b0bec5;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.dismantleBtn:hover:not(:disabled) { opacity: 0.85; }
+.dismantleBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.removeBtn {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid rgba(239,83,80,0.4);
+  border-radius: 8px;
+  color: #ef9a9a;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.15s;
+}
+
+.removeBtn:hover { background: rgba(239,83,80,0.1); }
+
+.pickerModal {
+  position: relative;
+  background: #1a1a2e;
+  border: 1px solid rgba(100,100,200,0.3);
+  border-radius: 16px;
+  max-width: 540px;
+  width: 94%;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
 }
 
 .pickerHeader {
@@ -304,159 +483,116 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(100, 200, 50, 0.15);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
   font-size: 16px;
   font-weight: 700;
-  color: #a8e66e;
+  color: #e8eaf6;
 }
-
-.pickerClose {
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 0 4px;
-  transition: color 0.15s;
-}
-
-.pickerClose:hover { color: #fff; }
 
 .pickerBody {
   overflow-y: auto;
-  padding: 16px 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.pickerGroup {}
-
 .pickerGroupLabel {
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.5px;
   text-transform: uppercase;
+  letter-spacing: 1px;
   margin-bottom: 8px;
 }
 
 .pickerGrid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
 }
 
 .pickerItem {
-  width: 88px;
-  background: rgba(20, 40, 12, 0.8);
-  border: 1.5px solid rgba(100, 200, 50, 0.2);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 10px;
   padding: 8px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   cursor: pointer;
-  transition: transform 0.15s, border-color 0.15s, background 0.15s;
+  transition: all 0.15s;
+  min-height: 100px;
 }
 
 .pickerItem:hover:not(:disabled) {
+  background: rgba(255,255,255,0.1);
   transform: translateY(-2px);
-  background: rgba(30, 60, 15, 0.9);
-}
-
-.pickerItem:disabled {
-  cursor: default;
 }
 
 .pickerItemLocked {
   opacity: 0.35;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  cursor: not-allowed;
 }
 
 .pickerItemImg {
-  width: 56px;
-  height: 56px;
+  width: 52px; height: 52px;
   object-fit: contain;
-  border-radius: 6px;
-}
-
-.pickerItemQuestion {
-  font-size: 28px;
-  color: rgba(255, 255, 255, 0.15);
-  font-weight: 900;
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .pickerItemName {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.75);
-  font-weight: 600;
+  color: #ccc;
   text-align: center;
+  line-height: 1.2;
   word-break: break-word;
-  line-height: 1.3;
 }
 
-/* ── Login prompt / loading ──────────────── */
-
-.loginPrompt {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 60px 20px;
+.pickerItemQuestion {
+  font-size: 28px;
+  color: rgba(255,255,255,0.15);
+  line-height: 52px;
 }
 
-.loginPromptIcon {
-  font-size: 48px;
-  opacity: 0.5;
+.pickerItemPlaced {
+  font-size: 9px;
+  color: #80cbc4;
+  background: rgba(0,150,136,0.2);
+  padding: 1px 4px;
+  border-radius: 4px;
 }
 
-.loginPromptText {
-  font-size: 15px;
-  color: rgba(168, 230, 110, 0.45);
+.pickerItemValue {
+  font-size: 10px;
+  font-weight: 700;
 }
 
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(168, 230, 110, 0.15);
-  border-top-color: #a8e66e;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ── Toast ───────────────────────────────── */
+/* ── Toast ───────────────────────────────────────────────────────────────────── */
 
 .toast {
   position: fixed;
   bottom: 28px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, rgba(30, 60, 15, 0.97) 0%, rgba(20, 45, 10, 0.97) 100%);
-  border: 1px solid rgba(100, 200, 50, 0.35);
-  border-radius: 12px;
-  padding: 12px 22px;
+  background: rgba(0,0,0,0.88);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 24px;
   font-size: 14px;
   font-weight: 600;
-  color: #a8e66e;
   z-index: 2000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: toastIn 0.2s ease;
   white-space: nowrap;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  animation: toastIn 0.3s ease;
 }
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .controls { flex-direction: column; align-items: stretch; }
+  .controlsLeft, .controlsRight { justify-content: space-between; }
+  .earningsPanel { flex-direction: column; gap: 12px; align-items: flex-start; }
 }
