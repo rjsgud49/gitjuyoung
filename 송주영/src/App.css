@@ -1,0 +1,266 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #14100a;
+}
+
+/* ─── Navbar ──────────────────────────────────────────────────────────────── */
+
+.navbar {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  height: 62px;
+  background: linear-gradient(135deg, #1c1208 0%, #120c04 100%);
+  border-bottom: 1px solid rgba(200, 140, 40, 0.22);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55);
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Brand: GitHub logo + "git주영" */
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-decoration: none;
+  cursor: default;
+}
+
+.nav-brand-icon {
+  color: #e8c870;
+  filter: drop-shadow(0 0 6px rgba(232, 200, 112, 0.5));
+  flex-shrink: 0;
+}
+
+.nav-brand-text {
+  font-size: 21px;
+  font-weight: 900;
+  /* Gradient: warm gold left → warm white right */
+  background: linear-gradient(90deg, #f0c840 0%, #ffe8a0 45%, #e8c870 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.5px;
+  font-family: 'Arial Black', 'Impact', sans-serif;
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+
+.nav-button {
+  padding: 7px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.22s ease;
+  white-space: nowrap;
+}
+
+.nav-button:hover {
+  background: rgba(232, 200, 112, 0.12);
+  color: #ffd080;
+  border-color: rgba(232, 200, 112, 0.28);
+  transform: translateY(-1px);
+}
+
+.nav-button.active {
+  background: linear-gradient(135deg, rgba(200, 140, 30, 0.30) 0%, rgba(160, 100, 10, 0.30) 100%);
+  color: #ffd080;
+  border-color: rgba(200, 150, 40, 0.55);
+  box-shadow: 0 0 12px rgba(200, 140, 30, 0.22);
+}
+
+/* ─── Nav right section ─────────────────────────────────────────────────── */
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Coin button */
+.coin-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #1a1a3a 0%, #0d0d28 100%);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 20px;
+  padding: 6px 12px 6px 10px;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.1);
+}
+
+.coin-btn:hover {
+  border-color: rgba(255, 215, 0, 0.65);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.coin-btn-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.coin-btn-value {
+  font-size: 16px;
+  font-weight: 900;
+  color: #FFD700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  min-width: 28px;
+  text-align: right;
+  line-height: 1;
+}
+
+.coin-btn-github {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  padding-left: 8px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.coin-btn-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(200, 150, 40, 0.5);
+  flex-shrink: 0;
+}
+
+.coin-btn-username {
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 220, 160, 0.8);
+}
+
+.nav-stats {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+}
+
+.nav-stats strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: #e8b840;
+}
+
+/* Admin gear button */
+.nav-admin-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.22s ease;
+  flex-shrink: 0;
+}
+
+.nav-admin-btn:hover {
+  background: rgba(232, 200, 112, 0.14);
+  border-color: rgba(232, 200, 112, 0.35);
+  transform: rotate(30deg);
+}
+
+.nav-admin-btn.active {
+  background: rgba(200, 140, 30, 0.25);
+  border-color: rgba(200, 150, 40, 0.6);
+  box-shadow: 0 0 12px rgba(200, 140, 30, 0.3);
+}
+
+/* ─── Main content ────────────────────────────────────────────────────────── */
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ─── Loading ─────────────────────────────────────────────────────────────── */
+
+.loading-navbar {
+  justify-content: center;
+}
+
+.loading-text {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar         { width: 6px; height: 6px; }
+::-webkit-scrollbar-track   { background: rgba(255,255,255,0.03); }
+::-webkit-scrollbar-thumb   { background: rgba(200, 150, 40, 0.40); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(200, 150, 40, 0.65); }
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .nav-brand { font-size: 17px; }
+
+  .nav-buttons {
+    width: 100%;
+    justify-content: center;
+    order: 3;
+  }
+
+  .nav-button { padding: 6px 12px; font-size: 12px; }
+
+  .nav-right { order: 2; }
+
+  .nav-stats { font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+  .nav-button { padding: 5px 10px; font-size: 11px; }
+  .coin-btn-github { display: none; }
+}
