@@ -116,6 +116,86 @@ export async function deleteAdminUser(token: string, login: string): Promise<voi
   if (!r.ok) throw new Error(await r.text());
 }
 
+// ─── Farm API ────────────────────────────────────────────────────────────────
+
+export interface FarmSlot {
+  index: number;
+  itemId: string | null;
+  itemName: string | null;
+  itemRarity: string | null;
+  itemImage: string | null;
+  productionRate: number | null;
+  placedAt: string | null;
+}
+
+export interface FarmStateData {
+  slots: FarmSlot[];
+  maxSlots: number;
+  lastCollect: string | null;
+  nextUpgradeCost: number;
+}
+
+export interface FarmConfig {
+  commonMin: number; commonMax: number;
+  rareMin: number;   rareMax: number;
+  epicMin: number;   epicMax: number;
+  legendaryMin: number; legendaryMax: number;
+}
+
+export async function fetchFarm(token: string): Promise<FarmStateData> {
+  const r = await fetch('/api/farm', { headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) throw new Error(`farm ${r.status}`);
+  return r.json() as Promise<FarmStateData>;
+}
+
+export async function putFarmPlace(token: string, slotIndex: number, item: { id: string; name: string; rarity: string; image: string }): Promise<{ productionRate: number }> {
+  const r = await fetch('/api/farm/place', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slotIndex, ...item }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ productionRate: number }>;
+}
+
+export async function deleteFarmSlot(token: string, slotIndex: number): Promise<void> {
+  const r = await fetch(`/api/farm/slot/${slotIndex}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+export async function postFarmCollect(token: string): Promise<{ coinsCollected: number }> {
+  const r = await fetch('/api/farm/collect', {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ coinsCollected: number }>;
+}
+
+export async function postFarmUpgrade(token: string): Promise<{ newMaxSlots: number; cost: number }> {
+  const r = await fetch('/api/farm/upgrade', {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ newMaxSlots: number; cost: number }>;
+}
+
+export async function fetchAdminFarmConfig(token: string): Promise<FarmConfig> {
+  const r = await fetch('/api/admin/farm-config', { headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) throw new Error(`farm-config ${r.status}`);
+  return r.json() as Promise<FarmConfig>;
+}
+
+export async function putAdminFarmConfig(token: string, cfg: FarmConfig): Promise<void> {
+  const r = await fetch('/api/admin/farm-config', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(cfg),
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
 export async function putApiAdminGlobal(
   token: string,
   body: GlobalApiPayload

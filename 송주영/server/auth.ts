@@ -19,10 +19,8 @@ export async function verifyGithubToken(token: string | null | undefined): Promi
   return { login: u.login, id: u.id };
 }
 
+const ADMIN_LOGINS = new Set<string>(['rjsgud49']);
+
 export function isAdminLogin(login: string): boolean {
-  const raw = process.env.ADMIN_GITHUB_LOGINS ?? process.env.ADMIN_GITHUB_LOGIN ?? 'rjsgud49';
-  const set = new Set(
-    raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
-  );
-  return set.has(login.toLowerCase());
+  return ADMIN_LOGINS.has(login.trim().toLowerCase());
 }

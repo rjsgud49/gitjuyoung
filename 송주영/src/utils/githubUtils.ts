@@ -79,11 +79,13 @@ export function generateOAuthUrl(): string {
   const state = Math.random().toString(36).substring(2) + Date.now().toString(36);
   sessionStorage.setItem(STATE_KEY, state);
   const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID as string;
+  const redirectUri = window.location.origin;
   return (
     'https://github.com/login/oauth/authorize' +
     `?client_id=${clientId}` +
     `&scope=read:user` +
-    `&state=${state}`
+    `&state=${state}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}`
   );
 }
 
@@ -96,7 +98,10 @@ export function clearOAuthState(): void {
 }
 
 export async function exchangeCodeForToken(code: string): Promise<string> {
-  const res = await fetch(`/api/github-token?code=${encodeURIComponent(code)}`);
+  const redirectUri = window.location.origin;
+  const res = await fetch(
+    `/api/github-token?code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}`
+  );
   if (!res.ok) throw new Error('토큰 교환 실패');
   const data = await res.json() as { access_token?: string; error?: string; error_description?: string };
   if (!data.access_token) {

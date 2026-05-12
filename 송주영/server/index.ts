@@ -13,6 +13,13 @@ import {
   listUsers,
   adminUpdateUser,
   adminDeleteUser,
+  getUserFarmState,
+  placeFarmCard,
+  removeFarmCard,
+  collectFarmCoins,
+  upgradeFarmSlots,
+  getFarmConfig,
+  saveFarmConfig,
   type GlobalState,
   type UserState,
 } from './store';
@@ -43,7 +50,8 @@ app.get('/api/global', async (_req, res) => {
 });
 
 app.get('/api/github-token', async (req, res) => {
-  const code = typeof req.query.code === 'string' ? req.query.code : '';
+  const code        = typeof req.query.code         === 'string' ? req.query.code         : '';
+  const redirectUri = typeof req.query.redirect_uri === 'string' ? req.query.redirect_uri : '';
   if (!code) { res.status(400).json({ error: 'missing code' }); return; }
 
   const client_id     = process.env.VITE_GITHUB_CLIENT_ID;
@@ -52,10 +60,12 @@ app.get('/api/github-token', async (req, res) => {
     res.status(500).json({ error: 'server_missing_oauth_env' }); return;
   }
   try {
+    const body: Record<string, string> = { client_id, client_secret, code };
+    if (redirectUri) body.redirect_uri = redirectUri;
     const ghRes = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ client_id, client_secret, code }),
+      body: JSON.stringify(body),
     });
     res.json(await ghRes.json());
   } catch {
@@ -193,6 +203,70 @@ app.delete('/api/admin/users/:login', async (req, res) => {
   } catch {
     res.status(500).json({ error: 'db_error' });
   }
+});
+
+// ─── Farm routes ─────────────────────────────────────────────────────────────
+
+app.get('/api/farm', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  try { res.json(await getUserFarmState(authUser.login, authUser.id)); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+app.put('/api/farm/place', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  const { slotIndex, id, name, rarity, image } = req.body as {
+    slotIndex: number; id: string; name: string; rarity: string; image: string;
+  };
+  if (typeof slotIndex !== 'number' || !id || !name || !rarity || !image) {
+    res.status(400).json({ error: 'bad_request' }); return;
+  }
+  try { res.json(await placeFarmCard(authUser.login, slotIndex, { id, name, rarity, image })); }
+  catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
+});
+
+app.delete('/api/farm/slot/:index', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  try { await removeFarmCard(authUser.login, parseInt(req.params.index, 10)); res.json({ ok: true }); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+app.post('/api/farm/collect', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  try { res.json(await collectFarmCoins(authUser.login)); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+app.post('/api/farm/upgrade', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  try { res.json(await upgradeFarmSlots(authUser.login)); }
+  catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
+});
+
+app.get('/api/admin/farm-config', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
+  try { res.json(await getFarmConfig()); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+app.put('/api/admin/farm-config', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
+  try { await saveFarmConfig(req.body); res.json({ ok: true }); }
+  catch { res.status(500).json({ error: 'db_error' }); }
 });
 
 // 프로덕션: 빌드된 프론트 정적 파일 서빙

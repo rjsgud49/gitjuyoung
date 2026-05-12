@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS users (
   github_total_commits INT,
   github_fetched_at    DATETIME,
   last_checkin_date    DATE         NULL DEFAULT NULL,
+  farm_slots           INT          NOT NULL DEFAULT 3,
+  farm_last_collect    DATETIME     NULL DEFAULT NULL,
   created_at           DATETIME     DEFAULT CURRENT_TIMESTAMP,
   updated_at           DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_login     (github_login),
@@ -62,6 +64,36 @@ CREATE TABLE IF NOT EXISTS users (
 -- last_checkin_date is included in the CREATE TABLE above.
 -- If upgrading an existing DB, run manually:
 -- ALTER TABLE users ADD COLUMN last_checkin_date DATE NULL DEFAULT NULL;
+-- ALTER TABLE users ADD COLUMN farm_slots INT NOT NULL DEFAULT 3;
+-- ALTER TABLE users ADD COLUMN farm_last_collect DATETIME NULL DEFAULT NULL;
+
+-- 농장 생산력 설정 (단일 행)
+CREATE TABLE IF NOT EXISTS farm_config (
+  id           TINYINT PRIMARY KEY DEFAULT 1,
+  common_min   DECIMAL(5,2) NOT NULL DEFAULT 1.00,
+  common_max   DECIMAL(5,2) NOT NULL DEFAULT 3.00,
+  rare_min     DECIMAL(5,2) NOT NULL DEFAULT 3.00,
+  rare_max     DECIMAL(5,2) NOT NULL DEFAULT 7.00,
+  epic_min     DECIMAL(5,2) NOT NULL DEFAULT 7.00,
+  epic_max     DECIMAL(5,2) NOT NULL DEFAULT 15.00,
+  legendary_min DECIMAL(5,2) NOT NULL DEFAULT 15.00,
+  legendary_max DECIMAL(5,2) NOT NULL DEFAULT 30.00
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 유저 농장 슬롯
+CREATE TABLE IF NOT EXISTS user_farm (
+  id              INT AUTO_INCREMENT PRIMARY KEY,
+  user_id         INT          NOT NULL,
+  slot_index      INT          NOT NULL,
+  item_id         VARCHAR(20)  NOT NULL,
+  item_name       VARCHAR(200) NOT NULL,
+  item_rarity     ENUM('common','rare','epic','legendary') NOT NULL,
+  item_image      VARCHAR(1000) NOT NULL,
+  production_rate DECIMAL(6,2) NOT NULL,
+  placed_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_user_slot (user_id, slot_index),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 유저 수집 아이템
 CREATE TABLE IF NOT EXISTS user_collected_items (

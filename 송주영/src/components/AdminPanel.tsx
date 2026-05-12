@@ -4,8 +4,8 @@ import type { GachaEvent, Announcement } from '../types/admin';
 import { getRarityColor, getRarityLabel } from '../utils/gachaUtils';
 import { fetchGitHubFullStats } from '../utils/githubUtils';
 import type { GitHubStats } from '../utils/githubUtils';
-import { fetchAdminUsers, putAdminUser, deleteAdminUser } from '../api/gameApi';
-import type { UserSummary } from '../api/gameApi';
+import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, putAdminFarmConfig } from '../api/gameApi';
+import type { UserSummary, FarmConfig } from '../api/gameApi';
 import styles from '../styles/AdminPanel.module.css';
 
 // ─── Lang colors ──────────────────────────────────────────────────────────────
@@ -19,18 +19,7 @@ const LANG_COLORS: Record<string, string> = {
 
 // ─── Storage keys ─────────────────────────────────────────────────────────────
 
-const EVENTS_KEY         = 'adminEvents';
-const ANNOUNCEMENTS_KEY  = 'adminAnnouncements';
-const GITHUB_ADMIN_KEY   = 'adminGithubUsername';
-
-function loadJSON<T>(key: string, fallback: T): T {
-  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; }
-  catch { return fallback; }
-}
-
-function saveJSON(key: string, val: unknown) {
-  localStorage.setItem(key, JSON.stringify(val));
-}
+const GITHUB_ADMIN_KEY = 'adminGithubUsername';
 
 function activityIcon(type: string) {
   return { PushEvent: '📦', CreateEvent: '✨', PullRequestEvent: '🔀' }[type] ?? '📌';
@@ -54,7 +43,7 @@ const RARITY_EMOJI: Record<GachaItem['rarity'], string> = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'dashboard' | 'items' | 'coins' | 'comms' | 'users';
+type Tab = 'dashboard' | 'items' | 'coins' | 'comms' | 'users' | 'farm';
 
 interface Props {
   gachaItems:    GachaItem[];
@@ -68,8 +57,8 @@ interface Props {
   onAnnouncementsChange: (a: Announcement[]) => void;
   gachaPullCost: number;
   onGachaPullCostChange: (n: number) => void;
-  /** 시작 코인만 저장했을 때 백엔드 전역 동기화를 트리거 */
-  onStartingCoinsPersisted?: () => void;
+  startingCoins: number;
+  onStartingCoinsChange: (n: number) => void;
   githubToken?: string;
 }
 
@@ -78,7 +67,7 @@ interface Props {
 export const AdminPanel = ({
   gachaItems, onUpdateItems, coins, onGrantCoins, totalPulls,
   events, onEventsChange, announcements, onAnnouncementsChange,
-  gachaPullCost, onGachaPullCostChange, onStartingCoinsPersisted, githubToken,
+  gachaPullCost, onGachaPullCostChange, startingCoins, onStartingCoinsChange, githubToken,
 }: Props) => {
   const [tab,         setTab]         = useState<Tab>('dashboard');
   // Users tab state
@@ -88,6 +77,9 @@ export const AdminPanel = ({
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editCoins,   setEditCoins]   = useState('');
   const [editPulls,   setEditPulls]   = useState('');
+  // Farm config tab
+  const [farmCfg, setFarmCfg] = useState<FarmConfig | null>(null);
+  const [farmCfgLoading, setFarmCfgLoading] = useState(false);
   const [rarityWeights, setRarityWeights] = useState<Record<GachaItem['rarity'], number>>({
     legendary: 1, epic: 3, rare: 8, common: 15,
   });
@@ -97,8 +89,11 @@ export const AdminPanel = ({
   const [ghError,     setGhError]     = useState<string | null>(null);
   const [toast,       setToast]       = useState<string | null>(null);
   const [grantAmt,    setGrantAmt]    = useState('');
-  const [startCoins,  setStartCoins]  = useState(() => loadJSON<number>('startingCoins', 30));
+  const [startCoins,  setStartCoins]  = useState(startingCoins);
   const [pullCostDraft, setPullCostDraft] = useState(() => String(gachaPullCost));
+
+  // prop이 백엔드에서 업데이트되면 로컬 draft 동기화
+  useEffect(() => { setStartCoins(startingCoins); }, [startingCoins]);
 
   useEffect(() => {
     setPullCostDraft(String(gachaPullCost));
@@ -190,8 +185,7 @@ export const AdminPanel = ({
   const handleSaveStartCoins = () => {
     const n = parseInt(String(startCoins), 10);
     if (isNaN(n) || n < 0) return;
-    saveJSON('startingCoins', n);
-    onStartingCoinsPersisted?.();
+    onStartingCoinsChange(n);
     showToast('✅ 시작 코인이 저장되었습니다');
   };
 
@@ -210,17 +204,13 @@ export const AdminPanel = ({
       id: `a-${Date.now()}`, title: aTitle, content: aContent,
       type: aType, createdAt: new Date().toISOString(), isPinned: aPinned,
     };
-    const updated = [newA, ...announcements];
-    onAnnouncementsChange(updated);
-    saveJSON(ANNOUNCEMENTS_KEY, updated);
+    onAnnouncementsChange([newA, ...announcements]);
     setATitle(''); setAContent(''); setAPinned(false);
     showToast('📢 공지가 등록되었습니다');
   };
 
   const deleteAnnouncement = (id: string) => {
-    const updated = announcements.filter(a => a.id !== id);
-    onAnnouncementsChange(updated);
-    saveJSON(ANNOUNCEMENTS_KEY, updated);
+    onAnnouncementsChange(announcements.filter(a => a.id !== id));
   };
 
   // ── Events ───────────────────────────────────────────────────────────────
@@ -234,23 +224,17 @@ export const AdminPanel = ({
       type: eType, value: val, expiresAt: new Date(eExpiry).toISOString(),
       isActive: false, createdAt: new Date().toISOString(),
     };
-    const updated = [newE, ...events];
-    onEventsChange(updated);
-    saveJSON(EVENTS_KEY, updated);
+    onEventsChange([newE, ...events]);
     setEName(''); setEDesc(''); setEValue('2'); setEExpiry('');
     showToast('🎉 이벤트가 추가되었습니다');
   };
 
   const toggleEvent = (id: string) => {
-    const updated = events.map(e => e.id === id ? { ...e, isActive: !e.isActive } : e);
-    onEventsChange(updated);
-    saveJSON(EVENTS_KEY, updated);
+    onEventsChange(events.map(e => e.id === id ? { ...e, isActive: !e.isActive } : e));
   };
 
   const deleteEvent = (id: string) => {
-    const updated = events.filter(e => e.id !== id);
-    onEventsChange(updated);
-    saveJSON(EVENTS_KEY, updated);
+    onEventsChange(events.filter(e => e.id !== id));
   };
 
   // ── Users tab ─────────────────────────────────────────────────────────────
@@ -270,6 +254,32 @@ export const AdminPanel = ({
   useEffect(() => {
     if (tab === 'users') loadUsers();
   }, [tab, loadUsers]);
+
+  const loadFarmCfg = useCallback(async () => {
+    if (!githubToken) return;
+    setFarmCfgLoading(true);
+    try {
+      setFarmCfg(await fetchAdminFarmConfig(githubToken));
+    } catch (e) {
+      showToast(`❌ 농장 설정 불러오기 실패: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setFarmCfgLoading(false);
+    }
+  }, [githubToken, showToast]);
+
+  useEffect(() => {
+    if (tab === 'farm' && !farmCfg) loadFarmCfg();
+  }, [tab, farmCfg, loadFarmCfg]);
+
+  const handleSaveFarmCfg = async () => {
+    if (!githubToken || !farmCfg) return;
+    try {
+      await putAdminFarmConfig(githubToken, farmCfg);
+      showToast('✅ 농장 생산량 설정 저장 완료');
+    } catch (e) {
+      showToast(`❌ 저장 실패: ${e instanceof Error ? e.message : e}`);
+    }
+  };
 
   const handleEditUser = (u: UserSummary) => {
     setEditingUser(u.githubLogin);
@@ -306,8 +316,7 @@ export const AdminPanel = ({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const uniqueItems    = gachaItems.length;
-  const collectedTotal = 0; // pass from parent if needed
+  const uniqueItems = gachaItems.length;
 
   return (
     <div className={styles.adminContainer}>
@@ -328,6 +337,7 @@ export const AdminPanel = ({
           ['coins',     '💰', '코인'],
           ['comms',     '📢', '공지/이벤트'],
           ['users',     '👥', '유저 관리'],
+          ['farm',      '🌾', '농장 설정'],
         ] as [Tab, string, string][]).map(([id, icon, label]) => (
           <button key={id}
             className={`${styles.tabBtn} ${tab === id ? styles.tabBtnActive : ''}`}
@@ -762,8 +772,6 @@ export const AdminPanel = ({
               </div>
             </div>
 
-            {/* Unused variable suppressor */}
-            <div style={{ display: 'none' }}>{collectedTotal}</div>
           </>
         )}
 
@@ -822,6 +830,53 @@ export const AdminPanel = ({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ── FARM CONFIG ───────────────────────────────────────── */}
+        {tab === 'farm' && (
+          <div className={styles.card}>
+            <div className={styles.cardTitle}>
+              <span>🌾</span> 농장 생산량 설정
+              <button className={styles.fetchBtn} onClick={loadFarmCfg} disabled={farmCfgLoading} style={{ marginLeft: 'auto' }}>
+                {farmCfgLoading ? '불러오는 중…' : '새로고침'}
+              </button>
+            </div>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: '0 0 16px' }}>
+              각 등급별 카드 배치 시 랜덤 생산 속도 범위 (코인/시간)
+            </p>
+            {farmCfg ? (
+              <>
+                {([
+                  ['legendary', '⭐ 전설', 'legendaryMin', 'legendaryMax'],
+                  ['epic',      '💜 에픽', 'epicMin',      'epicMax'],
+                  ['rare',      '💙 레어', 'rareMin',      'rareMax'],
+                  ['common',    '⬜ 일반', 'commonMin',    'commonMax'],
+                ] as [string, string, keyof FarmConfig, keyof FarmConfig][]).map(([, label, minKey, maxKey]) => (
+                  <div key={minKey} className={styles.formGrid2} style={{ marginBottom: 12 }}>
+                    <div className={styles.formRow}>
+                      <label className={styles.formLabel}>{label} 최소</label>
+                      <input className={styles.formInput} type="number" min={0} step={0.5}
+                        value={farmCfg[minKey]}
+                        onChange={e => setFarmCfg(prev => prev ? { ...prev, [minKey]: parseFloat(e.target.value) || 0 } : prev)}
+                      />
+                    </div>
+                    <div className={styles.formRow}>
+                      <label className={styles.formLabel}>{label} 최대</label>
+                      <input className={styles.formInput} type="number" min={0} step={0.5}
+                        value={farmCfg[maxKey]}
+                        onChange={e => setFarmCfg(prev => prev ? { ...prev, [maxKey]: parseFloat(e.target.value) || 0 } : prev)}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <button className={styles.formSubmitBtn} onClick={handleSaveFarmCfg}>
+                  ✅ 저장
+                </button>
+              </>
+            ) : (
+              <div className={styles.emptyMsg}>{farmCfgLoading ? '불러오는 중…' : '설정을 불러오세요'}</div>
+            )}
           </div>
         )}
       </div>
