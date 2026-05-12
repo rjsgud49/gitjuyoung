@@ -9,7 +9,7 @@ export interface GachaItem {
 export interface CollectedItem extends GachaItem {
   count: number;
   firstAcquiredAt: Date;
-  individualValue: number; // 계체값 — 카드 고유 생산력 수치
+  individualValue: number; // 생산량 — 카드 고유 생산력 수치
 }
 
 export interface GachaResult {

@@ -1,0 +1,177 @@
+/* ── Panel shell ─────────────────────────────────────────────────────────────── */
+
+.panel {
+  width: 220px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+  max-height: 680px;
+  align-self: flex-start;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 14px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0e0e0;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  letter-spacing: 0.5px;
+}
+
+.panelIcon { font-size: 15px; }
+
+/* ── Activity feed ───────────────────────────────────────────────────────────── */
+
+.feedList {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 0;
+}
+
+.feedEmpty {
+  padding: 20px 14px;
+  color: rgba(255,255,255,0.3);
+  font-size: 12px;
+  text-align: center;
+}
+
+.feedEntry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.1s;
+}
+
+.feedEntry:hover { background: rgba(255,255,255,0.03); }
+
+.feedDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.feedText {
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #ccc;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: baseline;
+}
+
+.feedLogin {
+  font-weight: 700;
+  color: #e8eaf6;
+}
+
+.feedVerb { color: rgba(255,255,255,0.45); }
+
+.feedItem {
+  font-weight: 700;
+}
+
+.feedRarity {
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.feedTime {
+  font-size: 9px;
+  color: rgba(255,255,255,0.25);
+  flex-shrink: 0;
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+/* ── Announcements ───────────────────────────────────────────────────────────── */
+
+.announceList {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.announceCard {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: background 0.1s;
+}
+
+.announceCard:hover { background: rgba(255,255,255,0.08); }
+
+.announceCardPinned {
+  border-color: rgba(255,183,77,0.3);
+  background: rgba(255,183,77,0.05);
+}
+
+.announceTop {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.announceIcon { font-size: 13px; }
+
+.pinBadge {
+  font-size: 9px;
+  background: rgba(255,183,77,0.3);
+  color: #ffb74d;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.announceType {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-left: auto;
+}
+
+.announceTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e8eaf6;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.announceContent {
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.announceDate {
+  font-size: 9px;
+  color: rgba(255,255,255,0.25);
+  margin-top: 5px;
+  text-align: right;
+}
+
+/* ── Responsive hide ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .panel { display: none; }
+}

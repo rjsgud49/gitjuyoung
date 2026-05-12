@@ -219,6 +219,95 @@ export async function putAdminFarmConfig(token: string, cfg: FarmConfig): Promis
   if (!r.ok) throw new Error(await r.text());
 }
 
+// ─── Activity feed ────────────────────────────────────────────────────────────
+
+export interface ActivityEntry {
+  login: string;
+  itemName: string;
+  itemRarity: string;
+  timestamp: string;
+}
+
+export async function fetchActivity(): Promise<ActivityEntry[]> {
+  const r = await fetch('/api/activity');
+  if (!r.ok) return [];
+  return r.json() as Promise<ActivityEntry[]>;
+}
+
+export async function postActivity(token: string, itemName: string, itemRarity: string): Promise<void> {
+  await fetch('/api/activity', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemName, itemRarity }),
+  }).catch(() => {});
+}
+
+// ─── Public farm config ───────────────────────────────────────────────────────
+
+export async function fetchFarmConfigPublic(): Promise<FarmConfig> {
+  const r = await fetch('/api/farm-config');
+  if (!r.ok) throw new Error('farm-config unavailable');
+  return r.json() as Promise<FarmConfig>;
+}
+
+// ─── Auction API ──────────────────────────────────────────────────────────────
+
+export interface AuctionEntry {
+  id: number;
+  sellerLogin: string;
+  itemId: string;
+  itemName: string;
+  itemRarity: 'common' | 'rare' | 'epic' | 'legendary';
+  itemImage: string;
+  individualValue: number;
+  price: number;
+  status: 'active' | 'sold' | 'cancelled';
+  buyerLogin: string | null;
+  createdAt: string;
+  soldAt: string | null;
+}
+
+export async function fetchAuctions(): Promise<AuctionEntry[]> {
+  const r = await fetch('/api/auction');
+  if (!r.ok) throw new Error(`auction ${r.status}`);
+  return r.json() as Promise<AuctionEntry[]>;
+}
+
+export async function fetchMyAuctions(token: string): Promise<AuctionEntry[]> {
+  const r = await fetch('/api/auction/mine', { headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) throw new Error(`auction/mine ${r.status}`);
+  return r.json() as Promise<AuctionEntry[]>;
+}
+
+export async function postCreateAuction(
+  token: string,
+  item: { itemId: string; itemName: string; itemRarity: string; itemImage: string; individualValue: number },
+  price: number
+): Promise<{ auctionId: number }> {
+  const r = await fetch('/api/auction', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...item, price }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ auctionId: number }>;
+}
+
+export async function deleteAuction(token: string, auctionId: number): Promise<void> {
+  const r = await fetch(`/api/auction/${auctionId}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+export async function postBuyAuction(token: string, auctionId: number): Promise<{ coinsSpent: number }> {
+  const r = await fetch(`/api/auction/${auctionId}/buy`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ coinsSpent: number }>;
+}
+
 export async function putApiAdminGlobal(
   token: string,
   body: GlobalApiPayload

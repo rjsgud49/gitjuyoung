@@ -22,9 +22,25 @@ import {
   dismantleDuplicates,
   getFarmConfig,
   saveFarmConfig,
+  listAuctions,
+  listMyAuctions,
+  createAuction,
+  cancelAuction,
+  buyAuction,
   type GlobalState,
   type UserState,
 } from './store';
+
+// ─── In-memory activity feed ──────────────────────────────────────────────────
+
+interface ActivityEntry {
+  login: string;
+  itemName: string;
+  itemRarity: string;
+  timestamp: string;
+}
+const activityLog: ActivityEntry[] = [];
+const MAX_ACTIVITY = 60;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT ?? '8787', 10);
@@ -288,6 +304,87 @@ app.put('/api/admin/farm-config', async (req, res) => {
   if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
   try { await saveFarmConfig(req.body); res.json({ ok: true }); }
   catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+// ─── Activity feed ────────────────────────────────────────────────────────────
+
+app.get('/api/activity', (_req, res) => {
+  res.json([...activityLog].reverse().slice(0, 30));
+});
+
+app.post('/api/activity', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  const { itemName, itemRarity } = req.body as { itemName?: string; itemRarity?: string };
+  if (!itemName || !itemRarity) { res.status(400).json({ error: 'bad_request' }); return; }
+  activityLog.push({ login: authUser.login, itemName, itemRarity, timestamp: new Date().toISOString() });
+  if (activityLog.length > MAX_ACTIVITY) activityLog.splice(0, activityLog.length - MAX_ACTIVITY);
+  res.json({ ok: true });
+});
+
+// ─── Public farm config ───────────────────────────────────────────────────────
+
+app.get('/api/farm-config', async (_req, res) => {
+  try { res.json(await getFarmConfig()); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+// ─── Auction routes ───────────────────────────────────────────────────────────
+
+app.get('/api/auction', async (_req, res) => {
+  try { res.json(await listAuctions()); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+app.get('/api/auction/mine', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  try { res.json(await listMyAuctions(authUser.login)); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+app.post('/api/auction', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  const { itemId, itemName, itemRarity, itemImage, individualValue, price } = req.body as {
+    itemId?: string; itemName?: string; itemRarity?: string; itemImage?: string;
+    individualValue?: number; price?: number;
+  };
+  if (!itemId || !itemName || !itemRarity || !itemImage || typeof price !== 'number' || price < 1) {
+    res.status(400).json({ error: 'bad_request' }); return;
+  }
+  try {
+    const result = await createAuction(authUser.login, {
+      itemId, itemName, itemRarity, itemImage,
+      individualValue: typeof individualValue === 'number' ? individualValue : 1.0,
+    }, Math.floor(price));
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e instanceof Error ? e.message : 'error' });
+  }
+});
+
+app.delete('/api/auction/:id', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  const id = parseInt(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: 'bad_request' }); return; }
+  try { await cancelAuction(authUser.login, id); res.json({ ok: true }); }
+  catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
+});
+
+app.post('/api/auction/:id/buy', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  const id = parseInt(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: 'bad_request' }); return; }
+  try { res.json(await buyAuction(authUser.login, id)); }
+  catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
 });
 
 // 프로덕션: 빌드된 프론트 정적 파일 서빙

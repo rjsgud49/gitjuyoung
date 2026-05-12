@@ -7,7 +7,9 @@ import { GachaCollection } from './components/GachaCollection';
 import { AdminPanel } from './components/AdminPanel';
 import { GitHubModal } from './components/GitHubModal';
 import { Farm } from './components/Farm';
-import { addItemToCollection } from './utils/gachaUtils';
+import { Auction } from './components/Auction';
+import { ActivityFeed, AnnouncementsPanel } from './components/GachaSidePanel';
+import { addItemToCollection, setFarmProductionRanges } from './utils/gachaUtils';
 import {
   loadToken,
   loadProfile,
@@ -29,6 +31,8 @@ import {
   putApiMe,
   putApiAdminGlobal,
   postCheckin,
+  postActivity,
+  fetchFarmConfigPublic,
 } from './api/gameApi';
 import type { MeApiPayload } from './api/gameApi';
 import './App.css';
@@ -36,11 +40,11 @@ import './App.css';
 // ─── localStorage: 페이지 로드마다 게임 데이터 삭제 ──────────────────────────
 
 const LS_KEEP = new Set([
-  'github_token',        // 로그인 유지
-  'github_profile',      // 프로필 캐시
-  'lastCheckinDate',     // 출석 중복 방지
-  'adminGithubUsername', // 어드민 검색 편의
-  'githubData',          // 커밋 수 일일 캐시
+  'github_token',
+  'github_profile',
+  'lastCheckinDate',
+  'adminGithubUsername',
+  'githubData',
 ]);
 
 function clearStaleLocalStorage() {
@@ -70,10 +74,9 @@ function mapToCollectedRows(map: Map<string, CollectedItem>): MeApiPayload['coll
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-type View = 'machine' | 'collection' | 'farm' | 'admin';
+type View = 'machine' | 'collection' | 'farm' | 'auction' | 'admin';
 
 function App() {
-  // 게임 상태 — 서버가 단일 소스, localStorage 캐시 없음
   const [gachaItems,      setGachaItems]      = useState<GachaItem[]>([]);
   const [collectedItems,  setCollectedItems]  = useState<Map<string, CollectedItem>>(new Map());
   const [totalPulls,      setTotalPulls]      = useState(0);
@@ -88,18 +91,15 @@ function App() {
   const [currentView,     setCurrentView]     = useState<View>('machine');
   const [githubOpen,      setGithubOpen]      = useState(false);
 
-  // GitHub 인증
   const [githubToken,   setGithubToken]   = useState<string | null>(() => loadToken());
   const [githubUser,    setGithubUser]    = useState<GitHubProfile | null>(loadProfile);
   const [githubLoading, setGithubLoading] = useState(
     () => new URLSearchParams(window.location.search).has('code')
   );
 
-  // 백엔드에서 데이터 로드 직후 → 역방향 sync 방지용 플래그
   const ignoreNextUserPersist   = useRef(false);
   const ignoreNextGlobalPersist = useRef(false);
 
-  // 페이지 로드마다 불필요한 localStorage 제거
   useEffect(() => { clearStaleLocalStorage(); }, []);
 
   // OAuth 콜백 처리 / 저장된 토큰 검증
@@ -156,7 +156,6 @@ function App() {
       return;
     }
 
-    // OAuth 콜백 없음 — 저장된 토큰 검증
     const token = loadToken();
     if (token && !loadProfile()) {
       fetchProfileByToken(token)
@@ -165,7 +164,7 @@ function App() {
     }
   }, []); // mount only
 
-  // 부트스트랩: 백엔드에서 전역 설정 + 로그인 사용자 데이터 로드
+  // 부트스트랩
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -183,6 +182,12 @@ function App() {
         setGachaPullCost(g.gachaPullCost);
         setStartingCoins(g.startingCoins);
 
+        // 농장 생산량 범위를 서버 설정으로 동기화
+        try {
+          const cfg = await fetchFarmConfigPublic();
+          setFarmProductionRanges(cfg);
+        } catch {}
+
         const token = loadToken();
         if (!token) return;
         const me = await fetchApiMe(token);
@@ -199,12 +204,11 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
-  // 활성 이벤트
   const activeEvent = events.find(e =>
     e.isActive && new Date(e.expiresAt) > new Date()
   ) ?? null;
 
-  // ── 백엔드 동기화: 사용자 데이터 ──────────────────────────────────────────
+  // 사용자 데이터 백엔드 동기화
   useEffect(() => {
     if (!backendConnected || !githubToken) return;
     if (ignoreNextUserPersist.current) {
@@ -222,7 +226,7 @@ function App() {
     return () => clearTimeout(t);
   }, [backendConnected, githubToken, coins, totalPulls, collectedItems]);
 
-  // ── 백엔드 동기화: 전역 설정 (어드민 전용) ────────────────────────────────
+  // 전역 설정 동기화 (어드민 전용)
   useEffect(() => {
     if (!backendConnected || !githubToken || !isAdminGitHubLogin(githubUser?.login)) return;
     if (ignoreNextGlobalPersist.current) {
@@ -245,7 +249,7 @@ function App() {
     gachaItems, gachaItemsVersion, gachaPullCost, startingCoins, events, announcements,
   ]);
 
-  // ── 일일 출석 체크인 ────────────────────────────────────────────────────────
+  // 일일 출석
   useEffect(() => {
     if (!githubToken || !backendConnected) return;
     const today = new Date().toISOString().slice(0, 10);
@@ -267,6 +271,10 @@ function App() {
   const handleGachaPull = (result: GachaResult) => {
     setCollectedItems(prev => addItemToCollection(result.item, prev));
     setTotalPulls(prev => prev + 1);
+    // 활동 피드에 전송
+    if (githubToken) {
+      void postActivity(githubToken, result.item.name, result.item.rarity);
+    }
   };
 
   const handleGachaPullMulti = (results: GachaResult[]) => {
@@ -276,6 +284,11 @@ function App() {
       return map;
     });
     setTotalPulls(prev => prev + results.length);
+    // 마지막 뽑기 결과만 피드에 전송
+    const last = results[results.length - 1];
+    if (githubToken && last) {
+      void postActivity(githubToken, last.item.name, last.item.rarity);
+    }
   };
 
   const handleCoinSpend  = (amount: number) => setCoins(prev => Math.max(0, prev - amount));
@@ -304,6 +317,9 @@ function App() {
           </button>
           <button className={`nav-button ${currentView === 'farm' ? 'active' : ''}`} onClick={() => setCurrentView('farm')}>
             🌾 농장
+          </button>
+          <button className={`nav-button ${currentView === 'auction' ? 'active' : ''}`} onClick={() => setCurrentView('auction')}>
+            🏪 경매
           </button>
         </div>
 
@@ -343,16 +359,20 @@ function App() {
       {/* Main content */}
       <main className="main-content">
         {currentView === 'machine' && (
-          <CapsuleMachine
-            items={gachaItems}
-            onGachaPull={handleGachaPull}
-            onGachaPullMulti={handleGachaPullMulti}
-            collectedItems={collectedItems}
-            coins={coins}
-            onCoinSpend={handleCoinSpend}
-            activeEvent={activeEvent}
-            basePullCost={gachaPullCost}
-          />
+          <div className="machine-layout">
+            <ActivityFeed githubToken={githubToken} />
+            <CapsuleMachine
+              items={gachaItems}
+              onGachaPull={handleGachaPull}
+              onGachaPullMulti={handleGachaPullMulti}
+              collectedItems={collectedItems}
+              coins={coins}
+              onCoinSpend={handleCoinSpend}
+              activeEvent={activeEvent}
+              basePullCost={gachaPullCost}
+            />
+            <AnnouncementsPanel announcements={announcements} />
+          </div>
         )}
         {currentView === 'collection' && (
           <GachaCollection
@@ -366,6 +386,17 @@ function App() {
             backendConnected={backendConnected}
             collectedItems={collectedItems}
             gachaItems={gachaItems}
+            coins={coins}
+            onCoinsChange={setCoins}
+            onCollectedItemsChange={setCollectedItems}
+          />
+        )}
+        {currentView === 'auction' && (
+          <Auction
+            githubToken={githubToken ?? undefined}
+            githubLogin={githubUser?.login}
+            backendConnected={backendConnected}
+            collectedItems={collectedItems}
             coins={coins}
             onCoinsChange={setCoins}
             onCollectedItemsChange={setCollectedItems}

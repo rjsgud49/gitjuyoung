@@ -141,7 +141,7 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
                         <span className={styles.cardStatValue}>{owned.count}</span>
                       </div>
                       <div className={styles.cardStat}>
-                        <span className={styles.cardStatLabel}>계체값</span>
+                        <span className={styles.cardStatLabel}>생산량</span>
                         <span className={styles.cardStatValue} style={{ color }}>{owned.individualValue.toFixed(2)}</span>
                       </div>
                       <div className={styles.cardStat}>

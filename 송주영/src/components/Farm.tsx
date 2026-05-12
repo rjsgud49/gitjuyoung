@@ -30,12 +30,85 @@ const DISMANTLE_RATE: Record<string, number> = {
   common: 3, rare: 8, epic: 20, legendary: 50,
 };
 
+// 200+ 말풍선 문구
+const SPEECH_BUBBLES = [
+  '똥마려', '쉬마려', '화장실 가고싶다', '응가하고싶어', '방귀 뀔것 같아',
+  '집가고싶다', '집에 보내줘', '엄마보고싶어', '아빠 보고싶다', '집이 최고야',
+  '살려주세요', '살려줘', '도와줘', '구해줘', '누가 좀 도와줘',
+  '여기 어디야', '나 어디있어', '길 잃었어', '이게 어딘지 모르겠어', '여기서 어떻게 나가',
+  '배고파', '밥 먹고싶다', '삼겹살 먹고싶다', '치킨 먹고싶다', '라면 끓여줘',
+  '피곤해', '졸려', '자고싶다', '쉬고싶어', '힘들어요',
+  '심심해', '놀아줘', '친구 어딨어', '혼자다', '외로워',
+  '추워', '더워', '날씨 왜이래', '에어컨 틀어줘', '히터 켜줘',
+  '주영이 최고', '주영 좋아', '주영쨩', '주영아 사랑해', '주영이 귀여워',
+  '왜나만 이래', '억울해', '불공평해', '내 탓 아냐', '난 아무것도 안했어',
+  '코딩 싫어', '개발 힘들다', '버그 왜이래', '에러 왜나와', 'git push 하기싫어',
+  '야근하기싫어', '퇴근하고싶다', '주말이면 좋겠다', '오늘 월요일이야?', '금요일 어디갔어',
+  '아이스크림 먹고싶다', '떡볶이 먹고싶다', '순대 먹고싶다', '붕어빵 먹고싶어', '컵라면 먹자',
+  '이거 언제끝나', '조금만 더', '힘내자', '할 수 있어', '파이팅',
+  '왜 날 뽑았어', '돌려줘', '이건 아니야', '뽑지 마세요', '살고싶다',
+  '뭐야 이게', '어이없어', '진짜?', '농담이지?', '설마',
+  '졌다', '이겼다', '대박', '실화야', '헐',
+  '맛있겠다', '먹고싶다', '배불러', '소화 안돼', '체했어',
+  '아파', '머리 아파', '배 아파', '다리 아파', '온몸이 아파',
+  '무서워', '귀신 있어', '발소리 들려', '뒤에 누가 있어', '살려',
+  '웃기다', '재밌다', '신나', '행복해', '즐거워',
+  '슬퍼', '눈물날것같아', '울고싶다', '힘들다', '지쳤어',
+  '화났어', '짜증나', '신경꺼', '건드리지마', '방해하지마',
+  '고마워', '감사합니다', '도와줘서 고마워', '잘했어', '최고야',
+  '미안해', '잘못했어', '용서해줘', '다신 안그럴게', '약속할게',
+  '사랑해', '좋아해', '귀여워', '예뻐', '잘생겼어',
+  '어디가', '뭐해', '뭐봐', '왜봐', '누구야',
+  '나야', '나임', '나잖아', '뭔소리야', '모르겠어',
+  '이제 뭐해', '다음엔 뭐해', '그다음엔', '끝났어', '아직이야',
+  '빨리해줘', '천천히해도돼', '서두르지마', '여유있어', '시간있어',
+  '오늘 뭐먹지', '점심메뉴 추천해', '저녁은 뭐야', '야식 시킬까', '배달 시켜줘',
+  '운동해야하는데', '살쪘어', '다이어트 중이야', '오늘만 먹자', '내일부터 할게',
+  '유튜브 보고싶다', '넷플릭스 틀어줘', '게임하고싶다', '방콕하고싶다', '칙칙폭폭',
+  '카페가고싶다', '커피 마시고싶어', '아메리카노 한잔', '라떼 주세요', '카페인 충전',
+  '책 읽어야하는데', '공부해야하는데', '시험 있어', '벼락치기할게', '밤새야겠다',
+  '잠깐만', '조금만', '일분만', '오분만', '십분만',
+  '아직이야?', '얼마나 더', '다 됐어?', '빨리빨리', '기다려줘',
+  '어떡해', '어떡하지', '방법이 없어', '막막해', '포기하고싶어',
+  '할게', '했어', '다했어', '완료', '끝',
+  '맞아', '그거야', '바로그거야', '딱이야', '완벽해',
+  '아니야', '아닌데', '틀렸어', '그게 아니라', '다시해줘',
+  '잘했어', '잘하네', '신기하다', '대단해', '멋있어',
+  '못했어', '실패했어', '다시할게', '연습해야겠어', '노력할게',
+  '왜이렇게 더워', '땀 엄청나', '물 마시고싶어', '얼음 넣어줘', '시원해',
+  '겨울옷 입고싶어', '눈 오면 좋겠다', '봄이 오면 좋겠어', '가을이 좋아', '여름 싫어',
+  '산책하고싶다', '공원 가고싶어', '자연이 그리워', '바다 가고싶어', '여행 가고싶다',
+  '아무것도 하기싫어', '그냥 눕고싶어', '멍때리고싶어', '뇌 비우고싶어', '생각하기싫어',
+  '청소해야하는데', '방이 더러워', '빨래해야해', '설거지해야해', '집안일 싫어',
+  '왜 이렇게 힘들어', '다 귀찮아', '의욕 없어', '무기력해', '그냥 쉬고싶어',
+  '머리 식히고싶어', '스트레스 풀고싶어', '소리지르고싶어', '울고싶어', '터질것같아',
+  '누가 안아줘', '위로해줘', '그냥 있어줘', '옆에 있어줘', '혼자 있고싶어',
+  '오늘 좋은날이야', '기분좋아', '설레', '두근두근', '신난다',
+  '오늘 나쁜날이야', '기분나빠', '재수없어', '오늘 망했어', '오늘은 포기',
+  '뭔가 잘될것같아', '느낌이 좋아', '오늘 운좋을것같아', '직감이야', '믿어봐',
+  '다 될거야', '잘될거야', '걱정마', '괜찮아', '다 잘될거야',
+  '모르겠다', '생각해볼게', '어떻게할지모르겠어', '결정못하겠어', '고민이야',
+  '결정했어', '이렇게 할게', '그렇게하자', '오케이', '좋아',
+  '싫어', '안해', '못해', '안할래', '하기싫어',
+  '해야해', '해야지', '해볼게', '노력할게', '최선다할게',
+  '뿡', '방귀뀌었어', '실수했어', '죄송합니다', '실례했습니다',
+  '졸리다 진짜', '눈 감겨', '잠깐 눈감을게', '조용히해줘', '쉿',
+  '깜짝이야', '놀랐잖아', '무슨소리야', '갑자기 왜', '예고없이 왜',
+  '뭐가 맛있을까', '초밥 먹고싶다', '피자 먹고싶다', '햄버거 먹자', '돈까스 먹자',
+  '나 예뻐?', '나 잘생겼어?', '어때보여', '이거 어울려?', '패션 어때',
+  '나만 힘든거야', '다들 힘든거야?', '세상이 왜이래', '이게 맞아?', '뭔가 이상해',
+  '으아아아', '꺄아아', '살기싫다', '아무도 날 몰라줘', '관심받고싶어',
+  '코코코', '두근두근', '흠흠', '음음', '아아아',
+  '진짜루', '왜그래', '어쩌라고', '그래서?', '그러니까',
+  '응응', '맞아맞아', '그러게', '알아알아', '맞지?',
+];
+
 function calcAccumulated(farm: FarmStateData): number {
   if (!farm.lastCollect || farm.placedItems.length === 0) return 0;
   const totalRate = farm.placedItems.reduce((s, it) => s + it.individualValue, 0);
   if (totalRate === 0) return 0;
   const elapsed = Math.min((Date.now() - new Date(farm.lastCollect).getTime()) / 3600000, 24);
-  return Math.floor(totalRate * elapsed);
+  return parseFloat((totalRate * elapsed).toFixed(4));
 }
 
 // ── Bouncing animation hook ───────────────────────────────────────────────────
@@ -45,8 +118,8 @@ interface BounceState {
 }
 
 function useBounceAnimation(
-  containerRef: React.RefObject<HTMLDivElement | null>,
-  elemRefs: React.MutableRefObject<Map<string, HTMLElement>>,
+  containerRef: { readonly current: HTMLDivElement | null },
+  elemRefs: { current: Map<string, HTMLElement> },
   items: FarmPlacedItem[]
 ) {
   const posRef = useRef<Map<string, BounceState>>(new Map());
@@ -114,13 +187,44 @@ export function Farm({
   const [upgrading, setUpgrading] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [dismantling, setDismantling] = useState(false);
+  const [speechBubbles, setSpeechBubbles] = useState<Map<string, string>>(new Map());
 
   const containerRef = useRef<HTMLDivElement>(null);
   const elemRefs = useRef<Map<string, HTMLElement>>(new Map());
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bubbleTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const placedItems = farm?.placedItems ?? [];
   useBounceAnimation(containerRef, elemRefs, placedItems);
+
+  // Speech bubble random trigger
+  useEffect(() => {
+    if (placedItems.length === 0) return;
+    const interval = setInterval(() => {
+      const idx = Math.floor(Math.random() * placedItems.length);
+      const item = placedItems[idx];
+      if (!item) return;
+      const phrase = SPEECH_BUBBLES[Math.floor(Math.random() * SPEECH_BUBBLES.length)];
+
+      setSpeechBubbles(prev => new Map(prev).set(item.itemId, phrase));
+
+      // clear existing timer for this item
+      const existing = bubbleTimers.current.get(item.itemId);
+      if (existing) clearTimeout(existing);
+
+      const timer = setTimeout(() => {
+        setSpeechBubbles(prev => {
+          const next = new Map(prev);
+          next.delete(item.itemId);
+          return next;
+        });
+        bubbleTimers.current.delete(item.itemId);
+      }, 2800);
+      bubbleTimers.current.set(item.itemId, timer);
+    }, 1800 + Math.random() * 1200);
+
+    return () => clearInterval(interval);
+  }, [placedItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -145,11 +249,12 @@ export function Farm({
     if (backendConnected && githubToken) loadFarm();
   }, [backendConnected, githubToken, loadFarm]);
 
+  // 1초 tick for smooth decimal display
   useEffect(() => {
     if (tickRef.current) clearInterval(tickRef.current);
     tickRef.current = setInterval(() => {
       setFarm(prev => { if (prev) setAccumulated(calcAccumulated(prev)); return prev; });
-    }, 10000);
+    }, 1000);
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, []);
 
@@ -165,7 +270,7 @@ export function Farm({
         placedAt: new Date().toISOString(),
       };
       setFarm(prev => prev ? { ...prev, placedItems: [...prev.placedItems, newItem] } : prev);
-      showToast(`✅ ${item.name} 배치 완료! (계체값 ${newItem.individualValue})`);
+      showToast(`✅ ${item.name} 배치! (생산량 ${newItem.individualValue})`);
     } catch (e) {
       showToast(`❌ ${e instanceof Error ? e.message : '배치 실패'}`);
     }
@@ -234,7 +339,7 @@ export function Farm({
         }));
       }
       setSelectedItem(prev => prev?.itemId === item.itemId ? { ...prev, individualValue: newValue } : prev);
-      showToast(`⬆️ 강화 완료! 계체값 ${newValue}`);
+      showToast(`⬆️ 강화 완료! 생산량 ${newValue}`);
     } catch (e) {
       showToast(`❌ ${e instanceof Error ? e.message : '강화 실패'}`);
     } finally {
@@ -295,20 +400,20 @@ export function Farm({
       {/* Header */}
       <div className={styles.farmHeader}>
         <div className={styles.farmTitle}>🌾 주영 농장</div>
-        <div className={styles.farmSub}>카드 고유 계체값으로 코인을 생산합니다</div>
+        <div className={styles.farmSub}>카드 고유 생산량으로 코인을 생산합니다</div>
       </div>
 
       {/* Earnings */}
       <div className={styles.earningsPanel}>
         <div className={styles.earningsLeft}>
           <div className={styles.earningsLabel}>현재 적립</div>
-          <div className={styles.earningsValue}>🪙 {accumulated.toLocaleString()}</div>
-          <div className={styles.earningsRate}>시간당 {totalRate.toFixed(1)} · 최대 24시간 저장</div>
+          <div className={styles.earningsValue}>🪙 {accumulated.toFixed(2)}</div>
+          <div className={styles.earningsRate}>시간당 {totalRate.toFixed(2)} · 최대 24시간 저장</div>
         </div>
         <button
           className={styles.harvestBtn}
           onClick={handleCollect}
-          disabled={collecting || accumulated === 0}
+          disabled={collecting || accumulated < 1}
         >
           {collecting ? '수확 중…' : '수확하기'}
         </button>
@@ -328,15 +433,21 @@ export function Farm({
             )}
             {farm.placedItems.map(item => {
               const color = getRarityColor(item.itemRarity);
+              const bubble = speechBubbles.get(item.itemId);
               return (
                 <div
                   key={item.itemId}
                   className={styles.bouncingCard}
                   ref={(el) => { if (el) elemRefs.current.set(item.itemId, el); else elemRefs.current.delete(item.itemId); }}
                   onClick={() => setSelectedItem(item)}
-                  title={`${item.itemName} (계체값 ${item.individualValue})`}
+                  title={`${item.itemName} (생산량 ${item.individualValue})`}
                   style={{ filter: `drop-shadow(0 0 6px ${color}99)` }}
                 >
+                  {bubble && (
+                    <div className={styles.speechBubble}>
+                      {bubble}
+                    </div>
+                  )}
                   <img
                     src={item.itemImage}
                     alt={item.itemName}
@@ -404,7 +515,7 @@ export function Farm({
                   <div className={styles.cardListRarity} style={{ color }}>{RARITY_LABEL[item.itemRarity]}</div>
                 </div>
                 <div className={styles.cardListRight}>
-                  <div className={styles.cardListValue}>계체값 {item.individualValue}</div>
+                  <div className={styles.cardListValue}>생산량 {item.individualValue}</div>
                   {dupes > 0 && <div className={styles.cardListDupes}>복제 {dupes}장</div>}
                 </div>
               </div>
@@ -473,13 +584,13 @@ function CardDetailModal({ item, owned, onClose, onRemove, onEnhance, onDismantl
           <div className={styles.detailInfo}>
             <div className={styles.detailName}>{item.itemName}</div>
             <div className={styles.detailRarity} style={{ color }}>{RARITY_LABEL[item.itemRarity]}</div>
-            <div className={styles.detailValue}>계체값: <strong style={{ color }}>{item.individualValue}</strong></div>
+            <div className={styles.detailValue}>생산량: <strong style={{ color }}>{item.individualValue}</strong></div>
             <div className={styles.detailOwned}>보유: {owned?.count ?? '?'}장 (복제 {dupes}장)</div>
           </div>
         </div>
 
         <div className={styles.detailSection}>
-          <div className={styles.detailSectionTitle}>⬆️ 강화 (복제 카드 소모 → 계체값 증가)</div>
+          <div className={styles.detailSectionTitle}>⬆️ 강화 (복제 카드 소모 → 생산량 증가)</div>
           <div className={styles.detailRow}>
             <input
               type="number" min={1} max={Math.max(1, dupes)}
@@ -494,7 +605,7 @@ function CardDetailModal({ item, owned, onClose, onRemove, onEnhance, onDismantl
               onClick={() => onEnhance(enhanceCopies)}
               disabled={dupes === 0 || enhancing}
             >
-              {enhancing ? '강화 중…' : `강화하기`}
+              {enhancing ? '강화 중…' : '강화하기'}
             </button>
           </div>
           {dupes === 0 && <div className={styles.detailWarn}>복제 카드가 없습니다</div>}
@@ -580,7 +691,7 @@ function CardPicker({ gachaItems, collectedItems, placedIds, onSelect, onClose }
                             {isPlaced && <div className={styles.pickerItemPlaced}>배치됨</div>}
                             {!isPlaced && (
                               <div className={styles.pickerItemValue} style={{ color }}>
-                                {collected.individualValue}
+                                생산량 {collected.individualValue}
                               </div>
                             )}
                           </>

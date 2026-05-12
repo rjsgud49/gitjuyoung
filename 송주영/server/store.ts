@@ -560,6 +560,166 @@ export async function adminDeleteUser(login: string): Promise<void> {
   }
 }
 
+// ─── Auction types ────────────────────────────────────────────────────────────
+
+export interface AuctionEntry {
+  id: number;
+  sellerLogin: string;
+  itemId: string;
+  itemName: string;
+  itemRarity: 'common' | 'rare' | 'epic' | 'legendary';
+  itemImage: string;
+  individualValue: number;
+  price: number;
+  status: 'active' | 'sold' | 'cancelled';
+  buyerLogin: string | null;
+  createdAt: string;
+  soldAt: string | null;
+}
+
+function rowToAuction(r: any): AuctionEntry {
+  return {
+    id: r.id,
+    sellerLogin: r.seller_login,
+    itemId: r.item_id,
+    itemName: r.item_name,
+    itemRarity: r.item_rarity,
+    itemImage: r.item_image,
+    individualValue: parseFloat(r.individual_value),
+    price: r.price,
+    status: r.status,
+    buyerLogin: r.buyer_login ?? null,
+    createdAt: new Date(r.created_at).toISOString(),
+    soldAt: r.sold_at ? new Date(r.sold_at).toISOString() : null,
+  };
+}
+
+export async function listAuctions(): Promise<AuctionEntry[]> {
+  const conn = await pool.getConnection();
+  try {
+    const [rows] = await conn.query(
+      "SELECT * FROM card_auctions WHERE status = 'active' ORDER BY created_at DESC LIMIT 100"
+    ) as any[];
+    return (rows as any[]).map(rowToAuction);
+  } finally { conn.release(); }
+}
+
+export async function listMyAuctions(login: string): Promise<AuctionEntry[]> {
+  const key = login.trim().toLowerCase();
+  const conn = await pool.getConnection();
+  try {
+    const [rows] = await conn.query(
+      'SELECT * FROM card_auctions WHERE seller_login = ? ORDER BY created_at DESC LIMIT 50', [key]
+    ) as any[];
+    return (rows as any[]).map(rowToAuction);
+  } finally { conn.release(); }
+}
+
+export async function createAuction(
+  login: string,
+  item: { itemId: string; itemName: string; itemRarity: string; itemImage: string; individualValue: number },
+  price: number
+): Promise<{ auctionId: number }> {
+  const key = login.trim().toLowerCase();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [userRows] = await conn.query('SELECT id FROM users WHERE github_login = ? FOR UPDATE', [key]) as any[];
+    const u = (userRows as any[])[0];
+    if (!u) { await conn.rollback(); throw new Error('user not found'); }
+
+    const [itemRows] = await conn.query(
+      'SELECT `count` FROM user_collected_items WHERE user_id = ? AND item_id = ?',
+      [u.id, item.itemId]
+    ) as any[];
+    const owned = (itemRows as any[])[0];
+    if (!owned || owned.count < 1) { await conn.rollback(); throw new Error('카드를 보유하지 않습니다'); }
+
+    if (owned.count === 1) {
+      await conn.query('DELETE FROM user_collected_items WHERE user_id = ? AND item_id = ?', [u.id, item.itemId]);
+    } else {
+      await conn.query(
+        'UPDATE user_collected_items SET `count` = `count` - 1 WHERE user_id = ? AND item_id = ?',
+        [u.id, item.itemId]
+      );
+    }
+
+    const [result] = await conn.query(
+      `INSERT INTO card_auctions (seller_login, item_id, item_name, item_rarity, item_image, individual_value, price)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [key, item.itemId, item.itemName, item.itemRarity, item.itemImage, item.individualValue, price]
+    ) as any[];
+    await conn.commit();
+    return { auctionId: (result as any).insertId };
+  } catch (e) { await conn.rollback(); throw e; }
+  finally { conn.release(); }
+}
+
+export async function cancelAuction(login: string, auctionId: number): Promise<void> {
+  const key = login.trim().toLowerCase();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [auctionRows] = await conn.query(
+      "SELECT * FROM card_auctions WHERE id = ? AND status = 'active' FOR UPDATE", [auctionId]
+    ) as any[];
+    const auction = (auctionRows as any[])[0];
+    if (!auction) { await conn.rollback(); throw new Error('경매를 찾을 수 없습니다'); }
+    if (auction.seller_login !== key) { await conn.rollback(); throw new Error('권한 없음'); }
+
+    const [userRows] = await conn.query('SELECT id FROM users WHERE github_login = ?', [key]) as any[];
+    const u = (userRows as any[])[0];
+    if (u) {
+      await conn.query(
+        `INSERT INTO user_collected_items
+           (user_id, item_id, item_name, item_rarity, item_image, item_probability, count, first_acquired_at, individual_value)
+         VALUES (?, ?, ?, ?, ?, 0, 1, NOW(), ?)
+         ON DUPLICATE KEY UPDATE count = count + 1`,
+        [u.id, auction.item_id, auction.item_name, auction.item_rarity, auction.item_image, parseFloat(auction.individual_value)]
+      );
+    }
+    await conn.query("UPDATE card_auctions SET status = 'cancelled' WHERE id = ?", [auctionId]);
+    await conn.commit();
+  } catch (e) { await conn.rollback(); throw e; }
+  finally { conn.release(); }
+}
+
+export async function buyAuction(buyerLogin: string, auctionId: number): Promise<{ coinsSpent: number }> {
+  const key = buyerLogin.trim().toLowerCase();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [auctionRows] = await conn.query(
+      "SELECT * FROM card_auctions WHERE id = ? AND status = 'active' FOR UPDATE", [auctionId]
+    ) as any[];
+    const auction = (auctionRows as any[])[0];
+    if (!auction) { await conn.rollback(); throw new Error('경매를 찾을 수 없습니다'); }
+    if (auction.seller_login === key) { await conn.rollback(); throw new Error('자신의 경매를 구매할 수 없습니다'); }
+
+    const [buyerRows] = await conn.query('SELECT id, coins FROM users WHERE github_login = ? FOR UPDATE', [key]) as any[];
+    const buyer = (buyerRows as any[])[0];
+    if (!buyer) { await conn.rollback(); throw new Error('구매자를 찾을 수 없습니다'); }
+    if (buyer.coins < auction.price) { await conn.rollback(); throw new Error('코인 부족'); }
+
+    await conn.query('UPDATE users SET coins = coins - ? WHERE id = ?', [auction.price, buyer.id]);
+    await conn.query('UPDATE users SET coins = coins + ? WHERE github_login = ?', [auction.price, auction.seller_login]);
+    await conn.query(
+      `INSERT INTO user_collected_items
+         (user_id, item_id, item_name, item_rarity, item_image, item_probability, count, first_acquired_at, individual_value)
+       VALUES (?, ?, ?, ?, ?, 0, 1, NOW(), ?)
+       ON DUPLICATE KEY UPDATE count = count + 1`,
+      [buyer.id, auction.item_id, auction.item_name, auction.item_rarity, auction.item_image, parseFloat(auction.individual_value)]
+    );
+    await conn.query(
+      "UPDATE card_auctions SET status = 'sold', buyer_login = ?, sold_at = NOW() WHERE id = ?",
+      [key, auctionId]
+    );
+    await conn.commit();
+    return { coinsSpent: auction.price };
+  } catch (e) { await conn.rollback(); throw e; }
+  finally { conn.release(); }
+}
+
 export async function saveUser(user: UserState): Promise<void> {
   const key = user.githubLogin.trim().toLowerCase();
   const conn = await pool.getConnection();

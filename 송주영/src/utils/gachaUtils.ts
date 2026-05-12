@@ -34,14 +34,29 @@ export function simulateGacha(
   };
 }
 
-function getIndividualValue(rarity: GachaItem['rarity']): number {
-  const ranges: Record<GachaItem['rarity'], [number, number]> = {
-    common:    [1.0,  3.0],
-    rare:      [3.0,  7.0],
-    epic:      [7.0,  15.0],
-    legendary: [15.0, 30.0],
+let _productionRanges: Record<GachaItem['rarity'], [number, number]> = {
+  common:    [1.0,  3.0],
+  rare:      [3.0,  7.0],
+  epic:      [7.0,  15.0],
+  legendary: [15.0, 30.0],
+};
+
+export function setFarmProductionRanges(cfg: {
+  commonMin: number; commonMax: number;
+  rareMin: number;   rareMax: number;
+  epicMin: number;   epicMax: number;
+  legendaryMin: number; legendaryMax: number;
+}): void {
+  _productionRanges = {
+    common:    [cfg.commonMin,    cfg.commonMax],
+    rare:      [cfg.rareMin,      cfg.rareMax],
+    epic:      [cfg.epicMin,      cfg.epicMax],
+    legendary: [cfg.legendaryMin, cfg.legendaryMax],
   };
-  const [min, max] = ranges[rarity];
+}
+
+function getIndividualValue(rarity: GachaItem['rarity']): number {
+  const [min, max] = _productionRanges[rarity];
   return parseFloat((min + Math.random() * (max - min)).toFixed(2));
 }
 
