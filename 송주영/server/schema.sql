@@ -59,8 +59,9 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uq_github_id (github_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Migration: add last_checkin_date if upgrading from older schema (MySQL 8.0+)
-ALTER TABLE users ADD COLUMN IF NOT EXISTS last_checkin_date DATE NULL DEFAULT NULL;
+-- last_checkin_date is included in the CREATE TABLE above.
+-- If upgrading an existing DB, run manually:
+-- ALTER TABLE users ADD COLUMN last_checkin_date DATE NULL DEFAULT NULL;
 
 -- 유저 수집 아이템
 CREATE TABLE IF NOT EXISTS user_collected_items (
