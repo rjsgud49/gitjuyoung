@@ -4,7 +4,7 @@ import {
   fetchAuctions, fetchMyAuctions, postCreateAuction, deleteAuction, postBuyAuction,
 } from '../api/gameApi';
 import type { AuctionEntry } from '../api/gameApi';
-import { getRarityColor, getRarityLabel } from '../utils/gachaUtils';
+import { getRarityColor } from '../utils/gachaUtils';
 import styles from '../styles/Auction.module.css';
 
 interface Props {
