@@ -1,6 +1,7 @@
 import { pool } from './db';
 import type { GachaItem } from '../src/types/index';
 import type { GachaEvent, Announcement } from '../src/types/admin';
+import { DEFAULT_ITEMS, ITEMS_VERSION } from '../src/data/defaultItems';
 
 export interface UserGitHubData {
   username: string;
@@ -167,6 +168,28 @@ export async function initDb(): Promise<void> {
         legendaryMax: parseFloat(cfgRow.legendary_max),
       });
       console.log('[db] RARITY_RANGES loaded from farm_config');
+    }
+
+    // DEFAULT_ITEMS 버전 체크 → 새 카드 자동 머지
+    const [vRows] = await conn.query('SELECT gacha_items_version FROM global_config WHERE id = 1') as any[];
+    const dbVersion = (vRows as any[])[0]?.gacha_items_version;
+    if (dbVersion !== ITEMS_VERSION) {
+      const [existingRows] = await conn.query('SELECT id FROM gacha_items') as any[];
+      const existingIds = new Set((existingRows as any[]).map((r: any) => r.id as string));
+      const newItems = DEFAULT_ITEMS.filter(i => !existingIds.has(i.id));
+      if (newItems.length > 0) {
+        await conn.query(
+          'INSERT INTO gacha_items (id, name, rarity, probability, image) VALUES ?',
+          [newItems.map(i => [i.id, i.name, i.rarity, i.probability, i.image])]
+        );
+        console.log(`[db] ${newItems.length}개 새 카드 머지 완료 (${ITEMS_VERSION})`);
+      }
+      await conn.query(
+        `INSERT INTO global_config (id, gacha_items_version) VALUES (1, ?)
+         ON DUPLICATE KEY UPDATE gacha_items_version = VALUES(gacha_items_version)`,
+        [ITEMS_VERSION]
+      );
+      console.log(`[db] gachaItemsVersion → ${ITEMS_VERSION}`);
     }
   } catch (e) {
     console.error('[db] initDb error:', e);
