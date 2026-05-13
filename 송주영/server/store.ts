@@ -130,6 +130,26 @@ export async function initDb(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
     console.log('[db] card_auctions table OK');
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS farm_config (
+        id            INT PRIMARY KEY DEFAULT 1,
+        common_min    DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+        common_max    DECIMAL(10,2) NOT NULL DEFAULT 3.00,
+        rare_min      DECIMAL(10,2) NOT NULL DEFAULT 3.00,
+        rare_max      DECIMAL(10,2) NOT NULL DEFAULT 7.00,
+        epic_min      DECIMAL(10,2) NOT NULL DEFAULT 7.00,
+        epic_max      DECIMAL(10,2) NOT NULL DEFAULT 15.00,
+        legendary_min DECIMAL(10,2) NOT NULL DEFAULT 15.00,
+        legendary_max DECIMAL(10,2) NOT NULL DEFAULT 30.00
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    await conn.query(`
+      INSERT IGNORE INTO farm_config
+        (id, common_min, common_max, rare_min, rare_max, epic_min, epic_max, legendary_min, legendary_max)
+      VALUES (1, 1.00, 3.00, 3.00, 7.00, 7.00, 15.00, 15.00, 30.00)
+    `);
+    console.log('[db] farm_config table OK');
   } catch (e) {
     console.error('[db] initDb error:', e);
   } finally { conn.release(); }

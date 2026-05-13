@@ -9,6 +9,8 @@ import {
 } from '../utils/githubUtils';
 import styles from '../styles/GitHubModal.module.css';
 
+const COINS_PER_COMMIT = 10;
+
 interface Props {
   isOpen:       boolean;
   onClose:      () => void;
@@ -28,41 +30,45 @@ export const GitHubModal = ({
 }: Props) => {
   const view: ModalView = githubToken && githubUser ? 'profile' : 'login';
 
-  const [commitCount,  setCommitCount]  = useState<number | null>(null);
+  const [currentTotal, setCurrentTotal] = useState<number | null>(null);
+  const [previousTotal, setPreviousTotal] = useState(0);
   const [loadingCoins, setLoadingCoins] = useState(false);
-  const [alreadyToday, setAlreadyToday] = useState(false);
-  const [coinGranted,  setCoinGranted]  = useState(false);
+  const [coinGranted, setCoinGranted] = useState(false);
 
   useEffect(() => {
     if (!isOpen || view !== 'profile' || !githubUser) return;
 
-    setCommitCount(null);
+    setCurrentTotal(null);
     setCoinGranted(false);
 
+    // 마지막으로 수령한 커밋 수(기준선) 로드
     const saved = loadGitHubData();
-    const todayStr = new Date().toDateString();
+    const prevTotal = (saved?.username === githubUser.login ? saved.totalCommits : 0) ?? 0;
+    setPreviousTotal(prevTotal);
 
-    if (saved?.username === githubUser.login && new Date(saved.fetchedAt).toDateString() === todayStr) {
-      setAlreadyToday(true);
-      setCommitCount(saved.totalCommits);
-    } else {
-      setAlreadyToday(false);
-      setLoadingCoins(true);
-      fetchGitHubCommitCount(githubUser.login, githubToken)
-        .then(n => setCommitCount(n))
-        .catch(() => setCommitCount(0))
-        .finally(() => setLoadingCoins(false));
-    }
+    // 현재 총 커밋 수 조회
+    setLoadingCoins(true);
+    fetchGitHubCommitCount(githubUser.login, githubToken)
+      .then(n => setCurrentTotal(n))
+      .catch(() => setCurrentTotal(prevTotal))
+      .finally(() => setLoadingCoins(false));
   }, [isOpen, view, githubUser, githubToken]);
 
+  const newCommits = (currentTotal ?? 0) - previousTotal;
+  const coinsToReceive = Math.max(0, newCommits) * COINS_PER_COMMIT;
+  const canReceive = !coinGranted && !loadingCoins && currentTotal !== null && newCommits > 0;
+
   const handleReceive = useCallback(() => {
-    if (!githubUser || commitCount === null || alreadyToday || coinGranted) return;
-    const amount = Math.max(commitCount, 1);
-    onCoinsAdded(amount);
-    saveGitHubData({ username: githubUser.login, totalCommits: commitCount, fetchedAt: new Date().toISOString() });
-    setAlreadyToday(true);
+    if (!githubUser || currentTotal === null || !canReceive) return;
+    onCoinsAdded(coinsToReceive);
+    saveGitHubData({
+      username: githubUser.login,
+      totalCommits: currentTotal,
+      fetchedAt: new Date().toISOString(),
+    });
+    setPreviousTotal(currentTotal);
     setCoinGranted(true);
-  }, [githubUser, commitCount, alreadyToday, coinGranted, onCoinsAdded]);
+  }, [githubUser, currentTotal, coinsToReceive, canReceive, onCoinsAdded]);
 
   const handleLogout = useCallback(() => {
     clearToken();
@@ -80,7 +86,7 @@ export const GitHubModal = ({
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
 
-        {/* ── LOGIN / LOADING VIEW ─────────────────────────────────────────── */}
+        {/* ── LOGIN VIEW ───────────────────────────────────────────────────── */}
         {view === 'login' && (
           <>
             <div className={styles.header}>
@@ -107,10 +113,9 @@ export const GitHubModal = ({
                     </svg>
                     <p className={styles.loginDesc}>
                       GitHub 계정으로 로그인하면<br/>
-                      커밋 수만큼 🪙 코인을 받을 수 있어요
+                      커밋 1개당 🪙 {COINS_PER_COMMIT} 코인을 받을 수 있어요
                     </p>
                   </div>
-
                   <button className={styles.oauthBtn} onClick={handleLogin}>
                     <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor">
                       <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
@@ -155,7 +160,7 @@ export const GitHubModal = ({
               </div>
 
               <div className={styles.coinSection}>
-                <div className={styles.coinSectionTitle}>오늘의 코인</div>
+                <div className={styles.coinSectionTitle}>커밋 코인 ({COINS_PER_COMMIT}코인 / 커밋)</div>
 
                 {loadingCoins ? (
                   <div className={styles.loadingRow}>
@@ -167,13 +172,24 @@ export const GitHubModal = ({
                     <div className={styles.coinRow}>
                       <span className={styles.coinRowLabel}>📦 총 커밋 수</span>
                       <span className={styles.coinRowValue}>
-                        {commitCount !== null ? commitCount.toLocaleString() : '–'}
+                        {currentTotal !== null ? currentTotal.toLocaleString() : '–'}
+                      </span>
+                    </div>
+                    <div className={styles.coinRow}>
+                      <span className={styles.coinRowLabel}>🆕 신규 커밋</span>
+                      <span className={styles.coinRowValue} style={{ color: newCommits > 0 ? '#4ade80' : '#aaa' }}>
+                        {currentTotal !== null ? `+${Math.max(0, newCommits).toLocaleString()}` : '–'}
+                        {previousTotal > 0 && currentTotal !== null && (
+                          <span style={{ fontSize: 10, color: '#888', marginLeft: 4 }}>
+                            (이전 {previousTotal.toLocaleString()} → {currentTotal.toLocaleString()})
+                          </span>
+                        )}
                       </span>
                     </div>
                     <div className={styles.coinRow}>
                       <span className={styles.coinRowLabel}>🪙 받을 코인</span>
-                      <span className={styles.coinRowValue} style={{ color: '#FFD700' }}>
-                        {commitCount !== null ? Math.max(commitCount, 1).toLocaleString() : '–'}
+                      <span className={styles.coinRowValue} style={{ color: coinsToReceive > 0 ? '#FFD700' : '#aaa' }}>
+                        {currentTotal !== null ? coinsToReceive.toLocaleString() : '–'}
                       </span>
                     </div>
                     <div className={styles.coinRow}>
@@ -183,12 +199,14 @@ export const GitHubModal = ({
                   </div>
                 )}
 
-                {alreadyToday && !coinGranted && (
-                  <div className={styles.receivedMsg}>✅ 오늘 이미 코인을 수령했습니다</div>
+                {!loadingCoins && currentTotal !== null && newCommits <= 0 && !coinGranted && (
+                  <div className={styles.receivedMsg}>
+                    새 커밋이 없습니다 — push하면 🪙 {COINS_PER_COMMIT}코인/커밋
+                  </div>
                 )}
                 {coinGranted && (
                   <div className={styles.receivedMsg} style={{ color: '#4ade80' }}>
-                    ✅ {Math.max(commitCount ?? 1, 1).toLocaleString()} 코인 지급 완료!
+                    ✅ {coinsToReceive.toLocaleString()} 코인 지급 완료!
                   </div>
                 )}
               </div>
@@ -198,13 +216,15 @@ export const GitHubModal = ({
               <button
                 className={styles.connectBtn}
                 onClick={handleReceive}
-                disabled={alreadyToday || coinGranted || loadingCoins || commitCount === null}
+                disabled={!canReceive}
               >
-                {alreadyToday || coinGranted
-                  ? '✅ 오늘 수령 완료'
-                  : commitCount !== null
-                    ? `💰 ${Math.max(commitCount, 1).toLocaleString()} 코인 받기`
-                    : '불러오는 중…'}
+                {coinGranted
+                  ? '✅ 수령 완료'
+                  : newCommits <= 0 && !loadingCoins && currentTotal !== null
+                    ? '새 커밋 없음'
+                    : currentTotal !== null
+                      ? `💰 ${coinsToReceive.toLocaleString()} 코인 받기`
+                      : '불러오는 중…'}
               </button>
               <button className={styles.logoutBtn} onClick={handleLogout}>로그아웃</button>
             </div>
