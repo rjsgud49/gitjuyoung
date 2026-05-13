@@ -118,7 +118,7 @@ export async function initDb(): Promise<void> {
         item_id          VARCHAR(255) NOT NULL,
         item_name        VARCHAR(255) NOT NULL,
         item_rarity      VARCHAR(50)  NOT NULL,
-        item_image       TEXT         NOT NULL DEFAULT '',
+        item_image       VARCHAR(2048) NOT NULL DEFAULT '',
         individual_value DECIMAL(10,2) NOT NULL DEFAULT 1.00,
         price            INT          NOT NULL,
         status           ENUM('active','sold','cancelled') NOT NULL DEFAULT 'active',
