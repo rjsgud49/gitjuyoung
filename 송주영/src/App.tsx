@@ -99,6 +99,7 @@ function App() {
 
   const ignoreNextUserPersist   = useRef(false);
   const ignoreNextGlobalPersist = useRef(false);
+  const userDataLoaded          = useRef(false);  // 서버에서 유저 데이터를 한 번이라도 받기 전까지 PUT 차단
 
   useEffect(() => { clearStaleLocalStorage(); }, []);
 
@@ -137,9 +138,10 @@ function App() {
                 setAnnouncements(g.announcements);
                 setGachaPullCost(g.gachaPullCost);
                 setStartingCoins(g.startingCoins);
-                ignoreNextUserPersist.current = true;
                 const me = await fetchApiMe(token);
                 if (me) {
+                  userDataLoaded.current = true;   // 이 시점부터 PUT 허용
+                  ignoreNextUserPersist.current = true;
                   setCoins(me.coins);
                   setTotalPulls(me.totalPulls);
                   setCollectedItems(collectionRowsToMap(me.collectedItems));
@@ -196,6 +198,7 @@ function App() {
         }).catch(() => {});
         const me = await fetchApiMe(token);
         if (cancelled || !me) return;
+        userDataLoaded.current = true;   // 이 시점부터 PUT 허용
         ignoreNextUserPersist.current = true;
         setCoins(me.coins);
         setTotalPulls(me.totalPulls);
@@ -213,8 +216,9 @@ function App() {
   ) ?? null;
 
   // 사용자 데이터 백엔드 동기화
+  // userDataLoaded.current가 true가 되기 전까지(서버에서 데이터를 한 번 받기 전) 절대 PUT하지 않음
   useEffect(() => {
-    if (!backendConnected || !githubToken) return;
+    if (!backendConnected || !githubToken || !userDataLoaded.current) return;
     if (ignoreNextUserPersist.current) {
       ignoreNextUserPersist.current = false;
       return;
