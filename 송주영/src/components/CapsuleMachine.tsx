@@ -371,17 +371,13 @@ export const CapsuleMachine = ({
     addTimeout(() => setPhase('waiting-tap'), 2650);
   }, [phase, coins, pullCost, items, collectedItems, onCoinSpend, onGachaPull, addTimeout]);
 
-  // ── 3x Pull ───────────────────────────────────────────────────────────────────
+  // ── Multi Pull helper ─────────────────────────────────────────────────────────
 
-  const handlePull3x = useCallback(() => {
-    if (phase !== 'idle' || coins < pullCost * 3 || items.length === 0) return;
-    onCoinSpend(pullCost * 3);
+  const handleMultiPull = useCallback((count: number) => {
+    if (phase !== 'idle' || coins < pullCost * count || items.length === 0) return;
+    onCoinSpend(pullCost * count);
 
-    const results = [
-      simulateGacha(items, collectedItems),
-      simulateGacha(items, collectedItems),
-      simulateGacha(items, collectedItems),
-    ];
+    const results = Array.from({ length: count }, () => simulateGacha(items, collectedItems));
     setMultiResults(results);
     setMultiRevealIdx(0);
     if (onGachaPullMulti) onGachaPullMulti(results);
@@ -419,13 +415,17 @@ export const CapsuleMachine = ({
     }, 1500);
 
     // Skip waiting-tap → go straight to multi-reveal with sequential flips
+    const interval = count <= 3 ? 700 : 350;
     addTimeout(() => {
       setPhase('multi-reveal');
-      addTimeout(() => setMultiRevealIdx(1), 500);
-      addTimeout(() => setMultiRevealIdx(2), 1900);
-      addTimeout(() => setMultiRevealIdx(3), 3300);
+      for (let i = 0; i < count; i++) {
+        addTimeout(() => setMultiRevealIdx(i + 1), interval * (i + 1));
+      }
     }, 2650);
   }, [phase, coins, pullCost, items, collectedItems, onCoinSpend, onGachaPullMulti, addTimeout]);
+
+  const handlePull3x  = useCallback(() => handleMultiPull(3),  [handleMultiPull]);
+  const handlePull10x = useCallback(() => handleMultiPull(10), [handleMultiPull]);
 
   // ── Tap capsule ───────────────────────────────────────────────────────────────
 
@@ -453,8 +453,9 @@ export const CapsuleMachine = ({
 
   // ── Derived ───────────────────────────────────────────────────────────────────
 
-  const canPull      = phase === 'idle' && coins >= pullCost && items.length > 0;
-  const canPull3x    = phase === 'idle' && coins >= pullCost * 3 && items.length > 0;
+  const canPull      = phase === 'idle' && coins >= pullCost       && items.length > 0;
+  const canPull3x    = phase === 'idle' && coins >= pullCost * 3   && items.length > 0;
+  const canPull10x   = phase === 'idle' && coins >= pullCost * 10  && items.length > 0;
   const showOverlay  = phase === 'white-flash' || phase === 'card-reveal' || phase === 'card-shown';
   const overlayClass = phase === 'white-flash' ? styles.flashPhase
                      : phase === 'card-reveal'  ? styles.revealPhase
@@ -615,24 +616,33 @@ export const CapsuleMachine = ({
                 onClick={handlePull3x}
                 disabled={!canPull3x}
               >
-                {phase !== 'idle' ? '진행 중...' : `3회 뽑기 (${pullCost * 3}코인)`}
+                {phase !== 'idle' ? '...' : `3회 (${pullCost * 3})`}
+              </button>
+              <button
+                className={`${styles.pullButton} ${styles.pullButton10x} ${!canPull10x ? styles.pullButtonDisabled : ''}`}
+                onClick={handlePull10x}
+                disabled={!canPull10x}
+              >
+                {phase !== 'idle' ? '...' : `10회 (${pullCost * 10})`}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3x Multi-reveal overlay */}
-      {phase === 'multi-reveal' && multiResults.length === 3 && (
+      {/* Multi-reveal overlay */}
+      {phase === 'multi-reveal' && multiResults.length > 0 && (
         <div className={`${styles.flashOverlay} ${styles.shownPhase}`}>
-          <div className={styles.multiRevealTitle}>✨ 3연속 뽑기 결과 ✨</div>
-          <div className={styles.multiCardRow}>
+          <div className={styles.multiRevealTitle}>
+            ✨ {multiResults.length}연속 뽑기 결과 ✨
+          </div>
+          <div className={`${styles.multiCardRow} ${multiResults.length >= 10 ? styles.multiCardRow10x : ''}`}>
             {multiResults.map((r, idx) => {
               const revealed = multiRevealIdx > idx;
               const cardClass = rarityCardClass[r.item.rarity] ?? styles.cardCommon;
               return (
                 <div key={idx} className={styles.multiCardWrapper}>
-                  <div className={`${styles.multiCardInner} ${revealed ? styles.multiCardFlipped : ''}`}>
+                  <div className={`${styles.multiCardInner} ${multiResults.length >= 10 ? styles.multiCardInnerSm : ''} ${revealed ? styles.multiCardFlipped : ''}`}>
                     {/* Back face */}
                     <div className={styles.multiCardBack}>
                       <div className={styles.multiCardBackPattern}>
@@ -673,7 +683,7 @@ export const CapsuleMachine = ({
               );
             })}
           </div>
-          {multiRevealIdx >= 3 && (
+          {multiRevealIdx >= multiResults.length && (
             <button className={styles.closeButton} onClick={handleClose}>계속하기</button>
           )}
         </div>

@@ -98,7 +98,8 @@ export const DEFAULT_ITEMS: GachaItem[] = [
   { id: 'c-48', name: '아가 주영',                      rarity: 'common', probability: 15, image: p('아가 주영.png') },
   { id: 'c-49', name: '크아앙 주영',                    rarity: 'common', probability: 15, image: p('크아앙 주영.png') },
   { id: 'c-50', name: '항아리 주영',                    rarity: 'common', probability: 15, image: p('항아리 주영.png') },
+  { id: 'c-51', name: '송싸이언',                       rarity: 'common', probability: 15, image: p('송싸이언.png') },
 ];
 
 /** DEFAULT_ITEMS 변경 시 함께 올려 로컬/서버 풀 버전을 맞춤 */
-export const ITEMS_VERSION = 'v3-photos-2026';
+export const ITEMS_VERSION = 'v4-photos-2026';
