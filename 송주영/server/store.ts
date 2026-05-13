@@ -510,13 +510,17 @@ export async function saveGlobalState(g: GlobalState): Promise<void> {
         'INSERT INTO gacha_items (id, name, rarity, probability, image) VALUES ?',
         [g.gachaItems.map(i => [i.id, i.name, i.rarity, i.probability, i.image])]
       );
-      // 수집된 카드의 등급을 gacha_items 기준으로 동기화
-      await conn.query(`
-        UPDATE user_collected_items uci
-        JOIN gacha_items gi ON uci.item_id = gi.id
-        SET uci.item_rarity = gi.rarity
-        WHERE uci.item_rarity != gi.rarity
-      `);
+      // 등급이 바뀐 카드: 등급 + 생산량 동시 재계산
+      for (const [rarity, [min, max]] of Object.entries(RARITY_RANGES)) {
+        const spread = max - min;
+        await conn.query(`
+          UPDATE user_collected_items uci
+          JOIN gacha_items gi ON uci.item_id = gi.id
+          SET uci.item_rarity     = gi.rarity,
+              uci.individual_value = ROUND(? + RAND() * ?, 2)
+          WHERE uci.item_rarity != gi.rarity AND gi.rarity = ?
+        `, [min, spread, rarity]);
+      }
     }
 
     await conn.query('DELETE FROM events');
