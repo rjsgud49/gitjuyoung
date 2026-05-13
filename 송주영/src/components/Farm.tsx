@@ -191,8 +191,41 @@ export function Farm({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const elemRefs = useRef<Map<string, HTMLElement>>(new Map());
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bubbleTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const farmSnapshot = useRef<FarmStateData | null>(null);
+  const accDisplayRef = useRef<HTMLSpanElement>(null);
+  const rafCounterRef = useRef<number>(0);
+  const lastReactUpdateRef = useRef<number>(0);
+
+  // farmSnapshot: rAF에서 React state 없이 최신 farm에 접근
+  useEffect(() => { farmSnapshot.current = farm; }, [farm]);
+
+  // 60fps 실시간 카운터 — DOM 직접 업데이트
+  useEffect(() => {
+    function fmt(v: number): string {
+      if (v >= 1000) return v.toFixed(2);
+      if (v >= 1)    return v.toFixed(3);
+      return v.toFixed(4);
+    }
+    function tick() {
+      const f = farmSnapshot.current;
+      if (f) {
+        const val = calcAccumulated(f);
+        if (accDisplayRef.current) {
+          accDisplayRef.current.textContent = fmt(val);
+        }
+        // React state는 0.5초마다만 업데이트 (버튼 활성화 판단용)
+        const now = performance.now();
+        if (now - lastReactUpdateRef.current > 500) {
+          lastReactUpdateRef.current = now;
+          setAccumulated(val);
+        }
+      }
+      rafCounterRef.current = requestAnimationFrame(tick);
+    }
+    rafCounterRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafCounterRef.current);
+  }, []);
 
   const placedItems = farm?.placedItems ?? [];
   useBounceAnimation(containerRef, elemRefs, placedItems);
@@ -247,14 +280,6 @@ export function Farm({
     if (backendConnected && githubToken) loadFarm();
   }, [backendConnected, githubToken, loadFarm]);
 
-  // 1초 tick for smooth decimal display
-  useEffect(() => {
-    if (tickRef.current) clearInterval(tickRef.current);
-    tickRef.current = setInterval(() => {
-      setFarm(prev => { if (prev) setAccumulated(calcAccumulated(prev)); return prev; });
-    }, 1000);
-    return () => { if (tickRef.current) clearInterval(tickRef.current); };
-  }, []);
 
   const handlePlace = async (item: GachaItem) => {
     if (!githubToken || !farm) return;
@@ -406,11 +431,7 @@ export function Farm({
         <div className={styles.earningsLeft}>
           <div className={styles.earningsLabel}>현재 적립</div>
           <div className={styles.earningsValue}>
-            🪙 {accumulated >= 1000
-              ? accumulated.toFixed(2)
-              : accumulated >= 1
-              ? accumulated.toFixed(3)
-              : accumulated.toFixed(4)}
+            🪙 <span ref={accDisplayRef}>0.0000</span>
           </div>
           <div className={styles.earningsRate}>
             시간당 +{totalRate.toFixed(2)} · 초당 +{(totalRate / 3600).toFixed(4)} · 최대 24시간

@@ -190,6 +190,10 @@ function App() {
 
         const token = loadToken();
         if (!token) return;
+        // 생산량 일괄 수정 (서버에서 DB 자동 픽스)
+        await fetch('/api/me/fix-values', {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => {});
         const me = await fetchApiMe(token);
         if (cancelled || !me) return;
         ignoreNextUserPersist.current = true;

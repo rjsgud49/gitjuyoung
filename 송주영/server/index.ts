@@ -5,6 +5,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { verifyGithubToken, isAdminLogin } from './auth';
 import {
+  initDb,
   getGlobalState,
   saveGlobalState,
   getOrCreateUser,
@@ -306,6 +307,22 @@ app.put('/api/admin/farm-config', async (req, res) => {
   catch { res.status(500).json({ error: 'db_error' }); }
 });
 
+// ─── Fix all stale individual values for a user ──────────────────────────────
+
+app.post('/api/me/fix-values', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  try {
+    // getOrCreateUser already contains the fix logic — just call it
+    await getOrCreateUser(authUser.login, authUser.id);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[/api/me/fix-values] ERROR:', e);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
 // ─── Activity feed ────────────────────────────────────────────────────────────
 
 app.get('/api/activity', (_req, res) => {
@@ -396,4 +413,5 @@ app.get('*', (_req, res) => {
 
 app.listen(PORT, () => {
   console.log(`[server] http://0.0.0.0:${PORT}  (GET /api/health)`);
+  initDb().catch(err => console.error('[db] initDb failed:', err));
 });
