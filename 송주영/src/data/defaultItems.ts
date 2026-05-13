@@ -92,7 +92,13 @@ export const DEFAULT_ITEMS: GachaItem[] = [
   { id: 'c-42', name: '화분주영 그림판',                rarity: 'common', probability: 15, image: p('화분주영그림판.png') },
   { id: 'c-43', name: '흑인한테 포위당한주영',          rarity: 'common', probability: 15, image: p('흑인한테 포위당한주영.png') },
   { id: 'c-44', name: '신비로운 GIF주영',               rarity: 'common', probability: 15, image: p('e64e37c0-7b89-422a-b5f8-bbae266fc448.gif') },
+  { id: 'c-45', name: '굴복 주영',                      rarity: 'common', probability: 15, image: p('굴복 주영.png') },
+  { id: 'c-46', name: '송라키오 사우르스',               rarity: 'common', probability: 15, image: p('송라키오 사우르스.png') },
+  { id: 'c-47', name: '송킨스',                         rarity: 'common', probability: 15, image: p('송킨스 .png') },
+  { id: 'c-48', name: '아가 주영',                      rarity: 'common', probability: 15, image: p('아가 주영.png') },
+  { id: 'c-49', name: '크아앙 주영',                    rarity: 'common', probability: 15, image: p('크아앙 주영.png') },
+  { id: 'c-50', name: '항아리 주영',                    rarity: 'common', probability: 15, image: p('항아리 주영.png') },
 ];
 
 /** DEFAULT_ITEMS 변경 시 함께 올려 로컬/서버 풀 버전을 맞춤 */
-export const ITEMS_VERSION = 'v2-photos-2026';
+export const ITEMS_VERSION = 'v3-photos-2026';

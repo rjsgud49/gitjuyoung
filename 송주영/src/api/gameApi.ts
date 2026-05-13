@@ -219,6 +219,15 @@ export async function putAdminFarmConfig(token: string, cfg: FarmConfig): Promis
   if (!r.ok) throw new Error(await r.text());
 }
 
+export async function postAdminRerollValues(token: string): Promise<{ updated: number }> {
+  const r = await fetch('/api/admin/reroll-values', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ updated: number }>;
+}
+
 // ─── Activity feed ────────────────────────────────────────────────────────────
 
 export interface ActivityEntry {

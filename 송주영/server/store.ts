@@ -91,6 +91,7 @@ export async function getFarmConfig(): Promise<FarmConfig> {
 }
 
 export async function saveFarmConfig(cfg: FarmConfig): Promise<void> {
+  applyFarmConfigToRanges(cfg); // 저장 즉시 서버 메모리 반영
   const conn = await pool.getConnection();
   try {
     await conn.query(
@@ -150,6 +151,23 @@ export async function initDb(): Promise<void> {
       VALUES (1, 1.00, 3.00, 3.00, 7.00, 7.00, 15.00, 15.00, 30.00)
     `);
     console.log('[db] farm_config table OK');
+
+    // 서버 시작 시 DB 설정값을 메모리 RARITY_RANGES에 반영
+    const [cfgRows] = await conn.query('SELECT * FROM farm_config WHERE id = 1') as any[];
+    const cfgRow = (cfgRows as any[])[0];
+    if (cfgRow) {
+      applyFarmConfigToRanges({
+        commonMin:    parseFloat(cfgRow.common_min),
+        commonMax:    parseFloat(cfgRow.common_max),
+        rareMin:      parseFloat(cfgRow.rare_min),
+        rareMax:      parseFloat(cfgRow.rare_max),
+        epicMin:      parseFloat(cfgRow.epic_min),
+        epicMax:      parseFloat(cfgRow.epic_max),
+        legendaryMin: parseFloat(cfgRow.legendary_min),
+        legendaryMax: parseFloat(cfgRow.legendary_max),
+      });
+      console.log('[db] RARITY_RANGES loaded from farm_config');
+    }
   } catch (e) {
     console.error('[db] initDb error:', e);
   } finally { conn.release(); }
@@ -157,9 +175,18 @@ export async function initDb(): Promise<void> {
 
 // ─── Individual value helpers ─────────────────────────────────────────────────
 
-const RARITY_RANGES: Record<string, [number, number]> = {
+let RARITY_RANGES: Record<string, [number, number]> = {
   common: [1.0, 3.0], rare: [3.0, 7.0], epic: [7.0, 15.0], legendary: [15.0, 30.0],
 };
+
+function applyFarmConfigToRanges(cfg: FarmConfig) {
+  RARITY_RANGES = {
+    common:    [cfg.commonMin,    cfg.commonMax],
+    rare:      [cfg.rareMin,      cfg.rareMax],
+    epic:      [cfg.epicMin,      cfg.epicMax],
+    legendary: [cfg.legendaryMin, cfg.legendaryMax],
+  };
+}
 
 function randomInRange(rarity: string): number {
   const [min, max] = RARITY_RANGES[rarity] ?? [1.0, 3.0];
@@ -168,7 +195,7 @@ function randomInRange(rarity: string): number {
 
 function isStaleValue(val: number, rarity: string): boolean {
   const [min] = RARITY_RANGES[rarity] ?? [1.0, 3.0];
-  return val < min * 0.95; // below the rarity minimum → stale default
+  return val < min * 0.95;
 }
 
 // ─── Farm CRUD ────────────────────────────────────────────────────────────────
@@ -809,6 +836,29 @@ export async function buyAuction(buyerLogin: string, auctionId: number): Promise
     return { coinsSpent: auction.price };
   } catch (e) { await conn.rollback(); throw e; }
   finally { conn.release(); }
+}
+
+export async function rerollAllIndividualValues(): Promise<{ updated: number }> {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    let totalUpdated = 0;
+    for (const [rarity, [min, max]] of Object.entries(RARITY_RANGES)) {
+      const spread = max - min;
+      const [result] = await conn.query(
+        `UPDATE user_collected_items SET individual_value = ROUND(? + RAND() * ?, 2) WHERE item_rarity = ?`,
+        [min, spread, rarity]
+      ) as any[];
+      totalUpdated += (result as any).affectedRows ?? 0;
+    }
+    await conn.commit();
+    return { updated: totalUpdated };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
 }
 
 export async function saveUser(user: UserState): Promise<void> {

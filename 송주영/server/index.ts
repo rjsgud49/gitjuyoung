@@ -23,6 +23,7 @@ import {
   dismantleDuplicates,
   getFarmConfig,
   saveFarmConfig,
+  rerollAllIndividualValues,
   listAuctions,
   listMyAuctions,
   createAuction,
@@ -304,6 +305,14 @@ app.put('/api/admin/farm-config', async (req, res) => {
   const authUser = await verifyGithubToken(token);
   if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
   try { await saveFarmConfig(req.body); res.json({ ok: true }); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+app.post('/api/admin/reroll-values', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
+  try { res.json(await rerollAllIndividualValues()); }
   catch { res.status(500).json({ error: 'db_error' }); }
 });
 

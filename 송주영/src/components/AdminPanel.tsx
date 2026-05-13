@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { GachaItem } from '../types';
 import type { GachaEvent, Announcement } from '../types/admin';
-import { getRarityColor, getRarityLabel } from '../utils/gachaUtils';
+import { getRarityColor, getRarityLabel, setFarmProductionRanges } from '../utils/gachaUtils';
 import { fetchGitHubFullStats } from '../utils/githubUtils';
 import type { GitHubStats } from '../utils/githubUtils';
-import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, putAdminFarmConfig } from '../api/gameApi';
+import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, putAdminFarmConfig, postAdminRerollValues } from '../api/gameApi';
 import type { UserSummary, FarmConfig } from '../api/gameApi';
 import styles from '../styles/AdminPanel.module.css';
 
@@ -155,6 +155,10 @@ export const AdminPanel = ({
     showToast('✅ 등급별 가중치가 전체 적용되었습니다');
   };
 
+  const handleRarityChange = (id: string, rarity: GachaItem['rarity']) => {
+    onUpdateItems(gachaItems.map(item => item.id === id ? { ...item, rarity } : item));
+  };
+
   const handleDeleteItem = (id: string) => {
     if (!confirm('이 아이템을 가챠 풀에서 제거할까요?')) return;
     onUpdateItems(gachaItems.filter(i => i.id !== id));
@@ -275,9 +279,20 @@ export const AdminPanel = ({
     if (!githubToken || !farmCfg) return;
     try {
       await putAdminFarmConfig(githubToken, farmCfg);
+      setFarmProductionRanges(farmCfg); // 클라이언트 범위 즉시 반영
       showToast('✅ 농장 생산량 설정 저장 완료');
     } catch (e) {
       showToast(`❌ 저장 실패: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const handleRerollValues = async () => {
+    if (!githubToken) return;
+    try {
+      const { updated } = await postAdminRerollValues(githubToken);
+      showToast(`✅ ${updated.toLocaleString()}개 카드 생산량 재배정 완료`);
+    } catch (e) {
+      showToast(`❌ 재배정 실패: ${e instanceof Error ? e.message : e}`);
     }
   };
 
@@ -557,6 +572,20 @@ export const AdminPanel = ({
                           />
                           <div className={styles.itemCardInfo}>
                             <div className={styles.itemCardName} title={item.name}>{item.name}</div>
+                            <div className={styles.probRow}>
+                              <span className={styles.weightLabel}>등급</span>
+                              <select
+                                className={styles.raritySelect}
+                                value={item.rarity}
+                                onChange={e => handleRarityChange(item.id, e.target.value as GachaItem['rarity'])}
+                                style={{ color: getRarityColor(item.rarity) }}
+                              >
+                                <option value="legendary">⭐ 전설</option>
+                                <option value="epic">💜 에픽</option>
+                                <option value="rare">💙 레어</option>
+                                <option value="common">⬜ 일반</option>
+                              </select>
+                            </div>
                             <div className={styles.probRow}>
                               <span className={styles.weightLabel}>가중치</span>
                               <input
@@ -872,6 +901,14 @@ export const AdminPanel = ({
                 ))}
                 <button className={styles.formSubmitBtn} onClick={handleSaveFarmCfg}>
                   ✅ 저장
+                </button>
+                <button
+                  className={styles.formSubmitBtn}
+                  onClick={handleRerollValues}
+                  style={{ marginTop: 8, background: '#7c3aed' }}
+                  title="현재 설정 범위 기준으로 전체 수집 카드 생산량 재배정"
+                >
+                  🎲 전체 카드 생산량 재배정
                 </button>
               </>
             ) : (
