@@ -103,11 +103,22 @@ const SPEECH_BUBBLES = [
   '응응', '맞아맞아', '그러게', '알아알아', '맞지?',
 ];
 
+function fmtAcc(v: number): string {
+  if (v >= 10000) return v.toFixed(0);
+  if (v >= 1000)  return v.toFixed(1);
+  if (v >= 1)     return v.toFixed(3);
+  return v.toFixed(4);
+}
+
 function calcAccumulated(farm: FarmStateData): number {
-  if (!farm.lastCollect || farm.placedItems.length === 0) return 0;
+  if (farm.placedItems.length === 0) return 0;
   const totalRate = farm.placedItems.reduce((s, it) => s + it.individualValue, 0);
   if (totalRate === 0) return 0;
-  const elapsed = Math.min((Date.now() - new Date(farm.lastCollect).getTime()) / 3600000, 24);
+  // lastCollect가 null이면 서버와 동일하게 1시간 전으로 처리
+  const baseTime = farm.lastCollect
+    ? new Date(farm.lastCollect).getTime()
+    : Date.now() - 3_600_000;
+  const elapsed = Math.min((Date.now() - baseTime) / 3_600_000, 24);
   return parseFloat((totalRate * elapsed).toFixed(4));
 }
 
@@ -192,40 +203,41 @@ export function Farm({
   const containerRef = useRef<HTMLDivElement>(null);
   const elemRefs = useRef<Map<string, HTMLElement>>(new Map());
   const bubbleTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const farmSnapshot = useRef<FarmStateData | null>(null);
   const accDisplayRef = useRef<HTMLSpanElement>(null);
-  const rafCounterRef = useRef<number>(0);
-  const lastReactUpdateRef = useRef<number>(0);
 
-  // farmSnapshot: rAF에서 React state 없이 최신 farm에 접근
-  useEffect(() => { farmSnapshot.current = farm; }, [farm]);
-
-  // 60fps 실시간 카운터 — DOM 직접 업데이트
+  // 실시간 카운터 — farm이 바뀔 때마다 새로 시작
   useEffect(() => {
-    function fmt(v: number): string {
-      if (v >= 1000) return v.toFixed(2);
-      if (v >= 1)    return v.toFixed(3);
-      return v.toFixed(4);
-    }
-    function tick() {
-      const f = farmSnapshot.current;
-      if (f) {
-        const val = calcAccumulated(f);
-        if (accDisplayRef.current) {
-          accDisplayRef.current.textContent = fmt(val);
-        }
-        // React state는 0.5초마다만 업데이트 (버튼 활성화 판단용)
-        const now = performance.now();
-        if (now - lastReactUpdateRef.current > 500) {
-          lastReactUpdateRef.current = now;
-          setAccumulated(val);
-        }
+    if (!farm) return;
+    const f = farm; // null 아님을 TypeScript에 보장
+
+    // rAF: 탭이 활성일 때 60fps 부드러운 갱신
+    let rafId: number;
+    let lastReactMs = 0;
+
+    function rafTick() {
+      const val = calcAccumulated(f);
+      if (accDisplayRef.current) {
+        accDisplayRef.current.textContent = fmtAcc(val);
       }
-      rafCounterRef.current = requestAnimationFrame(tick);
+      const now = performance.now();
+      if (now - lastReactMs > 500) {
+        lastReactMs = now;
+        setAccumulated(val);
+      }
+      rafId = requestAnimationFrame(rafTick);
     }
-    rafCounterRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafCounterRef.current);
-  }, []);
+    rafId = requestAnimationFrame(rafTick);
+
+    // setInterval: 백그라운드 탭에서도 React state 갱신 (버튼 활성화용)
+    const intervalId = setInterval(() => {
+      setAccumulated(calcAccumulated(f));
+    }, 1000);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearInterval(intervalId);
+    };
+  }, [farm]);
 
   const placedItems = farm?.placedItems ?? [];
   useBounceAnimation(containerRef, elemRefs, placedItems);
@@ -431,7 +443,7 @@ export function Farm({
         <div className={styles.earningsLeft}>
           <div className={styles.earningsLabel}>현재 적립</div>
           <div className={styles.earningsValue}>
-            🪙 <span ref={accDisplayRef}>0.0000</span>
+            🪙 <span ref={accDisplayRef}>{fmtAcc(accumulated)}</span>
           </div>
           <div className={styles.earningsRate}>
             시간당 +{totalRate.toFixed(2)} · 초당 +{(totalRate / 3600).toFixed(4)} · 최대 24시간
