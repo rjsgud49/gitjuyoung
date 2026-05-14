@@ -311,6 +311,13 @@ export async function initDb(): Promise<void> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
     console.log('[db] card_auctions table OK');
+    try {
+      await conn.query('ALTER TABLE card_auctions MODIFY COLUMN item_rarity VARCHAR(50) NOT NULL');
+      console.log('[db] card_auctions.item_rarity → VARCHAR(50) (special OK)');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/Unknown table|doesn.*t exist/i.test(msg)) console.warn('[db] alter card_auctions.item_rarity:', msg);
+    }
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS farm_config (
@@ -958,7 +965,7 @@ export interface AuctionEntry {
   sellerLogin: string;
   itemId: string;
   itemName: string;
-  itemRarity: 'common' | 'rare' | 'epic' | 'legendary';
+  itemRarity: 'common' | 'rare' | 'epic' | 'legendary' | 'special';
   itemImage: string;
   individualValue: number;
   price: number;

@@ -19,15 +19,15 @@ interface Props {
 }
 
 type Tab = 'market' | 'mine';
-type RarityFilter = 'all' | 'legendary' | 'epic' | 'rare' | 'common';
+type RarityFilter = 'all' | 'legendary' | 'epic' | 'rare' | 'common' | 'special';
 type SortKey = 'price_asc' | 'price_desc' | 'rarity' | 'new';
 
-const RARITY_ORDER = ['legendary', 'epic', 'rare', 'common'] as const;
+const RARITY_ORDER = ['special', 'legendary', 'epic', 'rare', 'common'] as const;
 const RARITY_LABEL: Record<string, string> = {
-  legendary: '전설', epic: '에픽', rare: '레어', common: '일반',
+  special: '스페셜', legendary: '전설', epic: '에픽', rare: '레어', common: '일반',
 };
 const RARITY_SORT_ORDER: Record<string, number> = {
-  legendary: 0, epic: 1, rare: 2, common: 3,
+  special: 0, legendary: 1, epic: 2, rare: 3, common: 4,
 };
 
 const PRICE_PRESETS = [50, 100, 200, 500, 1000, 2000, 5000];

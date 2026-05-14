@@ -133,10 +133,24 @@ export const AdminPanel = ({
       c => c.name.toLowerCase().includes(s) || c.id.toLowerCase().includes(s)
     );
   }, [gachaItems, ingredientSearch]);
-  const specialFarmCards = useMemo(
-    () => gachaItems.filter(c => c.rarity === 'special'),
-    [gachaItems]
-  );
+  const specialFarmCards = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; image: string }>();
+    for (const c of gachaItems) {
+      if (c.rarity !== 'special') continue;
+      map.set(c.id, { id: c.id, name: c.name, image: c.image });
+    }
+    for (const r of recipes) {
+      if (String(r.resultItemRarity) !== 'special') continue;
+      if (!map.has(r.resultItemId)) {
+        map.set(r.resultItemId, {
+          id: r.resultItemId,
+          name: r.resultItemName,
+          image: r.resultItemImage,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [gachaItems, recipes]);
 
   useEffect(() => {
     setIngredientPickerIndex(null);
@@ -373,7 +387,7 @@ export const AdminPanel = ({
   }, [showToast]);
 
   useEffect(() => {
-    if (tab === 'synthesis' && !recipesLoaded) loadRecipes();
+    if ((tab === 'synthesis' || tab === 'farm') && !recipesLoaded) loadRecipes();
   }, [tab, recipesLoaded, loadRecipes]);
 
   const newRecipe = (): SynthesisRecipeApi => ({

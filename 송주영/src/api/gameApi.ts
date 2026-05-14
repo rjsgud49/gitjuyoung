@@ -290,7 +290,7 @@ export interface AuctionEntry {
   sellerLogin: string;
   itemId: string;
   itemName: string;
-  itemRarity: 'common' | 'rare' | 'epic' | 'legendary';
+  itemRarity: 'common' | 'rare' | 'epic' | 'legendary' | 'special';
   itemImage: string;
   individualValue: number;
   price: number;
