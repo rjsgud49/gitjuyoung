@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { GachaItem } from '../types';
 import type { GachaEvent, Announcement } from '../types/admin';
 import { getRarityColor, getRarityLabel, setFarmProductionRanges } from '../utils/gachaUtils';
@@ -87,6 +87,9 @@ export const AdminPanel = ({
   const [editRecipe, setEditRecipe] = useState<SynthesisRecipeApi | null>(null);
   const synthesisResultImageInputRef = useRef<HTMLInputElement>(null);
   const [synthesisImgUploading, setSynthesisImgUploading] = useState(false);
+  const [ingredientPickerIndex, setIngredientPickerIndex] = useState<number | null>(null);
+  const [ingredientSearch, setIngredientSearch] = useState('');
+  const ingredientPickerRef = useRef<HTMLDivElement | null>(null);
   // Upload
   const [uploadFiles, setUploadFiles] = useState<Array<{
     file: File;
@@ -118,6 +121,31 @@ export const AdminPanel = ({
   useEffect(() => {
     setPullCostDraft(String(gachaPullCost));
   }, [gachaPullCost]);
+
+  const filteredGachaForIngredient = useMemo(() => {
+    const s = ingredientSearch.trim().toLowerCase();
+    if (!s) return gachaItems;
+    return gachaItems.filter(
+      c => c.name.toLowerCase().includes(s) || c.id.toLowerCase().includes(s)
+    );
+  }, [gachaItems, ingredientSearch]);
+
+  useEffect(() => {
+    setIngredientPickerIndex(null);
+    setIngredientSearch('');
+  }, [editRecipe?.id]);
+
+  useEffect(() => {
+    if (ingredientPickerIndex === null) return;
+    const onDown = (e: MouseEvent) => {
+      const node = ingredientPickerRef.current;
+      if (node && !node.contains(e.target as Node)) {
+        setIngredientPickerIndex(null);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [ingredientPickerIndex]);
 
   // Announcement form
   const [aTitle,   setATitle]   = useState('');
@@ -1138,17 +1166,26 @@ export const AdminPanel = ({
 
             {recipes.length === 0 && <div className={styles.emptyMsg}>등록된 레시피 없음</div>}
             {recipes.map(r => (
-              <div key={r.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>{r.name}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>
-                  결과: {r.resultItemName} ({getRarityLabel(r.resultItemRarity as any)})
+              <div key={r.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 10, overflow: 'hidden', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,200,100,0.2)' }}>
+                  {r.resultItemImage ? (
+                    <img src={r.resultItemImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, opacity: 0.35 }}>🖼</div>
+                  )}
                 </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
-                  재료: {r.ingredients.map(i => `${i.itemName} ×${i.count}`).join(', ')}
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className={styles.fetchBtn} onClick={() => setEditRecipe({ ...r })}>✏️ 편집</button>
-                  <button className={styles.dangerBtn} onClick={() => handleDeleteRecipe(r.id)}>🗑 삭제</button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>{r.name}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>
+                    결과: {r.resultItemName} ({getRarityLabel(r.resultItemRarity as any)})
+                  </div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+                    재료: {r.ingredients.map(i => `${i.itemName} ×${i.count}`).join(', ')}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" className={styles.fetchBtn} onClick={() => setEditRecipe({ ...r })}>✏️ 편집</button>
+                    <button type="button" className={styles.dangerBtn} onClick={() => handleDeleteRecipe(r.id)}>🗑 삭제</button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1186,50 +1223,47 @@ export const AdminPanel = ({
                   </div>
                   <div className={styles.formRow} style={{ gridColumn: '1 / -1' }}>
                     <label className={styles.formLabel}>결과 카드 이미지</label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                      {editRecipe.resultItemImage ? (
-                        <img
-                          src={editRecipe.resultItemImage}
-                          alt="결과 미리보기"
-                          style={{
-                            width: 52, height: 52, borderRadius: 8, objectFit: 'cover',
-                            border: '1px solid rgba(255,200,100,0.35)', flexShrink: 0,
-                          }}
+                    <div className={styles.synthesisImageBlock}>
+                      <div className={styles.synthesisResultPreviewBox}>
+                        {editRecipe.resultItemImage ? (
+                          <img src={editRecipe.resultItemImage} alt="결과 카드 미리보기" />
+                        ) : (
+                          <div className={styles.synthesisResultPreviewPlaceholder}>
+                            업로드 또는 아래 URL 입력 시<br />
+                            카드 이미지가 여기 표시됩니다
+                          </div>
+                        )}
+                      </div>
+                      <div className={styles.synthesisImageActions}>
+                        <input
+                          ref={synthesisResultImageInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/gif,image/webp"
+                          className={styles.programmaticFileInput}
+                          onChange={handleSynthesisResultImageFile}
+                          disabled={synthesisImgUploading}
+                          tabIndex={-1}
+                          aria-hidden
                         />
-                      ) : (
-                        <div
-                          style={{
-                            width: 52, height: 52, borderRadius: 8, flexShrink: 0,
-                            background: 'rgba(255,255,255,0.06)', border: '1px dashed rgba(255,200,100,0.25)',
-                          }}
+                        <button
+                          type="button"
+                          className={styles.fetchBtn}
+                          style={{ alignSelf: 'flex-start' }}
+                          disabled={!githubToken || synthesisImgUploading}
+                          onClick={() => synthesisResultImageInputRef.current?.click()}
+                        >
+                          {synthesisImgUploading ? '업로드 중…' : '📎 사진 업로드'}
+                        </button>
+                        <input
+                          className={styles.formInput}
+                          placeholder="/사진/카드이름.png (직접 입력)"
+                          value={editRecipe.resultItemImage}
+                          onChange={e => setEditRecipe(p => p && ({ ...p, resultItemImage: e.target.value }))}
                         />
-                      )}
-                      <input
-                        ref={synthesisResultImageInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/gif,image/webp"
-                        className={styles.uploadFileInput}
-                        onChange={handleSynthesisResultImageFile}
-                        disabled={synthesisImgUploading}
-                      />
-                      <button
-                        type="button"
-                        className={styles.fetchBtn}
-                        disabled={!githubToken || synthesisImgUploading}
-                        onClick={() => synthesisResultImageInputRef.current?.click()}
-                      >
-                        {synthesisImgUploading ? '업로드 중…' : '📎 사진 업로드'}
-                      </button>
-                      <input
-                        className={styles.formInput}
-                        style={{ flex: '1 1 160px', minWidth: 140 }}
-                        placeholder="/사진/카드이름.png (직접 입력 가능)"
-                        value={editRecipe.resultItemImage}
-                        onChange={e => setEditRecipe(p => p && ({ ...p, resultItemImage: e.target.value }))}
-                      />
-                    </div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 6 }}>
-                      서버의 <code style={{ color: 'rgba(232,200,112,0.85)' }}>/사진</code> 폴더에 저장되며, 가챠 풀에는 추가되지 않습니다.
+                        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', margin: 0, lineHeight: 1.45 }}>
+                          서버 <code style={{ color: 'rgba(232,200,112,0.85)' }}>/사진</code>에 저장됩니다. 가챠 풀에는 자동으로 넣지 않습니다.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1243,40 +1277,98 @@ export const AdminPanel = ({
                 </div>
                 {editRecipe.ingredients.map((ing, idx) => {
                   const selCard = gachaItems.find(c => c.id === ing.itemId);
+                  const pickerOpen = ingredientPickerIndex === idx;
                   return (
-                    <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-                      {selCard ? (
-                        <img src={selCard.image} alt={selCard.name}
-                          style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.15)' }} />
-                      ) : (
-                        <div style={{ width: 36, height: 36, borderRadius: 6, background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
-                      )}
-                      <select className={styles.formInput} value={ing.itemId} style={{ flex: 1 }}
-                        onChange={e => {
-                          const card = gachaItems.find(c => c.id === e.target.value);
-                          setEditRecipe(p => {
-                            if (!p) return p;
-                            const arr = [...p.ingredients];
-                            arr[idx] = { ...arr[idx], itemId: e.target.value, itemName: card?.name ?? '' };
-                            return { ...p, ingredients: arr };
-                          });
-                        }}>
-                        <option value="">카드 선택…</option>
-                        {gachaItems.map(c => (
-                          <option key={c.id} value={c.id}>
-                            {(RARITY_EMOJI as Record<string,string>)[c.rarity] ?? '•'} {c.name}
-                          </option>
-                        ))}
-                      </select>
-                      <input className={styles.formInput} type="number" min={1} value={ing.count} style={{ width: 56 }}
+                    <div key={idx} className={styles.ingredientRow}>
+                      <div
+                        ref={pickerOpen ? ingredientPickerRef : null}
+                        className={styles.ingredientPickerWrap}
+                      >
+                        <button
+                          type="button"
+                          className={styles.ingredientPickerTrigger}
+                          onClick={() => {
+                            setIngredientPickerIndex(v => (v === idx ? null : idx));
+                            setIngredientSearch('');
+                          }}
+                        >
+                          {selCard ? (
+                            <img className={styles.ingredientPickerTriggerThumb} src={selCard.image} alt="" />
+                          ) : (
+                            <div className={styles.ingredientPickerTriggerThumb} aria-hidden />
+                          )}
+                          <span className={styles.ingredientPickerTriggerText}>
+                            {selCard
+                              ? `${(RARITY_EMOJI as Record<string, string>)[selCard.rarity] ?? '•'} ${selCard.name}`
+                              : '카드 선택 — 썸네일에서 고르기'}
+                          </span>
+                          <span style={{ color: 'rgba(255,200,100,0.65)', fontSize: 11, flexShrink: 0 }} aria-hidden>
+                            {pickerOpen ? '▲' : '▼'}
+                          </span>
+                        </button>
+                        {pickerOpen && (
+                          <div className={styles.ingredientPickerPanel} role="listbox" aria-label="재료 카드 목록">
+                            <input
+                              type="text"
+                              className={styles.ingredientPickerSearch}
+                              placeholder="이름 또는 ID 검색…"
+                              value={ingredientSearch}
+                              onChange={e => setIngredientSearch(e.target.value)}
+                              autoFocus
+                            />
+                            <div className={styles.ingredientPickerGrid}>
+                              {filteredGachaForIngredient.map(c => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  className={styles.ingredientPickerCard}
+                                  onClick={() => {
+                                    setEditRecipe(p => {
+                                      if (!p) return p;
+                                      const arr = [...p.ingredients];
+                                      arr[idx] = { ...arr[idx], itemId: c.id, itemName: c.name };
+                                      return { ...p, ingredients: arr };
+                                    });
+                                    setIngredientPickerIndex(null);
+                                    setIngredientSearch('');
+                                  }}
+                                >
+                                  <img src={c.image} alt="" loading="lazy" />
+                                  <span className={styles.ingredientPickerCardName}>
+                                    {(RARITY_EMOJI as Record<string, string>)[c.rarity] ?? '•'} {c.name}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                            {filteredGachaForIngredient.length === 0 && (
+                              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 13, padding: 10 }}>
+                                검색 결과 없음
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        className={styles.formInput}
+                        type="number"
+                        min={1}
+                        value={ing.count}
+                        style={{ width: 56, flexShrink: 0 }}
                         onChange={e => setEditRecipe(p => {
                           if (!p) return p;
                           const arr = [...p.ingredients];
                           arr[idx] = { ...arr[idx], count: parseInt(e.target.value) || 1 };
                           return { ...p, ingredients: arr };
-                        })} />
-                      <button className={styles.dangerBtn}
-                        onClick={() => setEditRecipe(p => p && ({ ...p, ingredients: p.ingredients.filter((_, i) => i !== idx) }))}>
+                        })}
+                      />
+                      <button
+                        type="button"
+                        className={styles.dangerBtn}
+                        onClick={() => {
+                          setIngredientPickerIndex(null);
+                          setEditRecipe(p => p && ({ ...p, ingredients: p.ingredients.filter((_, i) => i !== idx) }));
+                        }}
+                      >
                         🗑
                       </button>
                     </div>
