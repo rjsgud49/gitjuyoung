@@ -8,6 +8,7 @@ import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, p
 import type { SynthesisRecipeApi } from '../api/gameApi';
 import type { UserSummary, FarmConfig } from '../api/gameApi';
 import styles from '../styles/AdminPanel.module.css';
+import { photoUrlForDisplay } from '../utils/photoUrl';
 
 // ─── Lang colors ──────────────────────────────────────────────────────────────
 
@@ -1169,7 +1170,7 @@ export const AdminPanel = ({
               <div key={r.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 10, overflow: 'hidden', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,200,100,0.2)' }}>
                   {r.resultItemImage ? (
-                    <img src={r.resultItemImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={photoUrlForDisplay(r.resultItemImage)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, opacity: 0.35 }}>🖼</div>
                   )}
@@ -1226,7 +1227,7 @@ export const AdminPanel = ({
                     <div className={styles.synthesisImageBlock}>
                       <div className={styles.synthesisResultPreviewBox}>
                         {editRecipe.resultItemImage ? (
-                          <img src={editRecipe.resultItemImage} alt="결과 카드 미리보기" />
+                          <img src={photoUrlForDisplay(editRecipe.resultItemImage)} alt="결과 카드 미리보기" />
                         ) : (
                           <div className={styles.synthesisResultPreviewPlaceholder}>
                             업로드 또는 아래 URL 입력 시<br />

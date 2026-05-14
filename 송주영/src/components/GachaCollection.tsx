@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { GachaItem, CollectedItem, Rarity } from '../types';
 import { getRarityColor, getRarityLabel } from '../utils/gachaUtils';
+import { photoUrlForDisplay } from '../utils/photoUrl';
 import styles from '../styles/GachaCollection.module.css';
 
 type FilterType = 'all' | 'legendary' | 'epic' | 'rare' | 'common' | 'special' | 'collected' | 'uncollected';
@@ -67,7 +68,6 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
   const total = allItems.length;
   const collected = collectedItems.size;
   const pct = total > 0 ? (collected / total) * 100 : 0;
-  const hasSpecial = specialItems.length > 0;
 
   return (
     <div className={styles.bookPage}>
@@ -88,7 +88,7 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
         </div>
 
         <div className={styles.statsRow}>
-          {(['legendary', 'epic', 'rare', 'common'] as Rarity[]).map(r => (
+          {(['legendary', 'epic', 'rare', 'common', 'special'] as Rarity[]).map(r => (
             <div key={r} className={styles.statChip} style={{ borderColor: getRarityColor(r) + '66' }}>
               <span className={styles.statDot} style={{ background: getRarityColor(r) }} />
               <span className={styles.statLabel}>{getRarityLabel(r)}</span>
@@ -97,23 +97,12 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
               </span>
             </div>
           ))}
-          {stats.special > 0 && (
-            <div className={styles.statChip} style={{ borderColor: getRarityColor('special') + '66' }}>
-              <span className={styles.statDot} style={{ background: getRarityColor('special') }} />
-              <span className={styles.statLabel}>스페셜</span>
-              <span className={styles.statCount} style={{ color: getRarityColor('special') }}>
-                {stats.special}
-              </span>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Filter tabs */}
       <div className={styles.filterRow}>
-        {(Object.keys(FILTER_LABELS) as FilterType[])
-          .filter(f => f !== 'special' || hasSpecial)
-          .map(f => (
+        {(Object.keys(FILTER_LABELS) as FilterType[]).map(f => (
             <button
               key={f}
               className={`${styles.filterTab} ${filter === f ? styles.filterTabActive : ''}`}
@@ -124,7 +113,7 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
             >
               {FILTER_LABELS[f]}
             </button>
-          ))}
+        ))}
       </div>
 
       {/* Item grid */}
@@ -151,7 +140,7 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
                   {isSpecial && <div className={styles.specialGlow} />}
                   <div className={styles.cardImageWrap}>
                     <img
-                      src={owned.image}
+                      src={photoUrlForDisplay(owned.image)}
                       alt={owned.name}
                       className={styles.cardImage}
                       onError={(e) => {
@@ -188,8 +177,7 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
               );
             }
 
-            // Uncollected (special은 미수집 표시 안 함)
-            if (item.rarity === 'special') return null;
+            // 미수집 (스페셜 포함 — 가챠 풀에 스페셜 정의가 있으면 실루엣 표시)
             return (
               <div key={item.id} className={`${styles.card} ${styles.cardUnknown}`} style={{ '--rarity-color': color } as React.CSSProperties}>
                 <div className={styles.cardCornerTL} />

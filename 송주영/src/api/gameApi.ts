@@ -343,7 +343,15 @@ export async function postCraftSynthesis(
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipeId }),
   });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    const t = await r.text();
+    let msg = t;
+    try {
+      const j = JSON.parse(t) as { error?: string };
+      if (typeof j.error === 'string') msg = j.error;
+    } catch { /* plain text */ }
+    throw new Error(msg);
+  }
   return r.json();
 }
 

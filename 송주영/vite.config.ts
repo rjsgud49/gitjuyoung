@@ -15,6 +15,11 @@ export default defineConfig(({ mode }) => {
           target: API_TARGET,
           changeOrigin: true,
         },
+        // 업로드 이미지는 Express uploads/사진 에만 있음 (public/사진 과 별개)
+        '/사진': {
+          target: API_TARGET,
+          changeOrigin: true,
+        },
       },
     },
   }

@@ -99,13 +99,14 @@ CREATE TABLE IF NOT EXISTS user_farm (
 CREATE TABLE IF NOT EXISTS user_collected_items (
   id               INT AUTO_INCREMENT PRIMARY KEY,
   user_id          INT          NOT NULL,
-  item_id          VARCHAR(20)  NOT NULL,
+  item_id          VARCHAR(255) NOT NULL,
   item_name        VARCHAR(200) NOT NULL,
-  item_rarity      ENUM('common','rare','epic','legendary') NOT NULL,
-  item_image       VARCHAR(1000) NOT NULL,
+  item_rarity      VARCHAR(50)  NOT NULL,
+  item_image       VARCHAR(2048) NOT NULL,
   item_probability INT          NOT NULL,
   count            INT          NOT NULL DEFAULT 1,
   first_acquired_at DATETIME   NOT NULL,
+  individual_value DECIMAL(10,2) NOT NULL DEFAULT 1.00,
   UNIQUE KEY uq_user_item (user_id, item_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

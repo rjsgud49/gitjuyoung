@@ -127,6 +127,30 @@ export async function initDb(): Promise<void> {
     `);
     console.log('[db] synthesis_recipes table OK');
 
+    // 합성 결과 스페셜 등급·긴 item_id 저장 (기존 ENUM/짧은 VARCHAR 대응)
+    try {
+      await conn.query(
+        'ALTER TABLE user_collected_items MODIFY COLUMN item_rarity VARCHAR(50) NOT NULL'
+      );
+      console.log('[db] user_collected_items.item_rarity → VARCHAR(50) (special OK)');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/Unknown table|doesn't exist|Table.*doesn.*t exist/i.test(msg)) {
+        console.warn('[db] alter user_collected_items.item_rarity:', msg);
+      }
+    }
+    try {
+      await conn.query(
+        'ALTER TABLE user_collected_items MODIFY COLUMN item_id VARCHAR(255) NOT NULL'
+      );
+      console.log('[db] user_collected_items.item_id → VARCHAR(255)');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/Unknown table|doesn't exist|Table.*doesn.*t exist/i.test(msg)) {
+        console.warn('[db] alter user_collected_items.item_id:', msg);
+      }
+    }
+
     await conn.query(`
       CREATE TABLE IF NOT EXISTS card_auctions (
         id               INT AUTO_INCREMENT PRIMARY KEY,

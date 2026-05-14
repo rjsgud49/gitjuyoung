@@ -4,6 +4,7 @@ import { getRarityColor, getRarityLabel } from '../utils/gachaUtils';
 import { fetchSynthesisRecipes, postCraftSynthesis } from '../api/gameApi';
 import type { SynthesisRecipeApi } from '../api/gameApi';
 import styles from '../styles/Synthesis.module.css';
+import { photoUrlForDisplay } from '../utils/photoUrl';
 
 interface Props {
   githubToken?: string;
@@ -102,7 +103,7 @@ export const Synthesis = ({ githubToken, collectedItems, onCollectedItemsChange 
                   >
                     <div className={styles.resultGlow} />
                     <img
-                      src={recipe.resultItemImage}
+                      src={photoUrlForDisplay(recipe.resultItemImage)}
                       alt={recipe.resultItemName}
                       className={styles.resultImg}
                       onError={e => { (e.currentTarget as HTMLImageElement).src =
@@ -131,7 +132,7 @@ export const Synthesis = ({ githubToken, collectedItems, onCollectedItemsChange 
                       return (
                         <div key={i} className={`${styles.ingredient} ${enough ? styles.ingHave : styles.ingMissing}`}>
                           {held?.image && (
-                            <img src={held.image} alt={ing.itemName} className={styles.ingImg}
+                            <img src={photoUrlForDisplay(held.image)} alt={ing.itemName} className={styles.ingImg}
                               onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                           )}
                           <div className={styles.ingInfo}>
@@ -172,7 +173,7 @@ export const Synthesis = ({ githubToken, collectedItems, onCollectedItemsChange 
               style={{ '--rarity-color': getRarityColor(result.rarity) } as React.CSSProperties}
             >
               <div className={styles.resultModalGlow} />
-              <img src={result.image} alt={result.name} className={styles.resultModalImg}
+              <img src={photoUrlForDisplay(result.image)} alt={result.name} className={styles.resultModalImg}
                 onError={e => { (e.currentTarget as HTMLImageElement).src =
                   'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23333" width="120" height="120"/%3E%3C/svg%3E'; }}
               />
