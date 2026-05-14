@@ -86,14 +86,19 @@ export const AdminPanel = ({
   const [recipesLoaded, setRecipesLoaded] = useState(false);
   const [editRecipe, setEditRecipe] = useState<SynthesisRecipeApi | null>(null);
   // Upload
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadName, setUploadName] = useState('');
-  const [uploadRarity, setUploadRarity] = useState<'common'|'rare'|'epic'|'legendary'>('common');
-  const [uploadProb, setUploadProb] = useState('15');
-  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<Array<{
+    file: File;
+    preview: string;
+    name: string;
+    rarity: 'common'|'rare'|'epic'|'legendary';
+    prob: string;
+    uploading?: boolean;
+    error?: string;
+  }>>([]);
   const [rarityWeights, setRarityWeights] = useState<Record<GachaItem['rarity'], number>>({
     legendary: 1, epic: 3, rare: 8, common: 15,
   });
+  const [isDragActive, setIsDragActive] = useState(false);
   const [ghUser,      setGhUser]      = useState(() => localStorage.getItem(GITHUB_ADMIN_KEY) ?? '');
   const [ghStats,     setGhStats]     = useState<GitHubStats | null>(null);
   const [ghLoading,   setGhLoading]   = useState(false);
@@ -356,28 +361,118 @@ export const AdminPanel = ({
   // ── Card upload ───────────────────────────────────────────────────────────────
 
   const handleUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null;
-    setUploadFile(f);
-    if (f) {
-      setUploadPreview(URL.createObjectURL(f));
-      if (!uploadName) setUploadName(f.name.replace(/\.[^.]+$/, ''));
+    const files = e.currentTarget.files;
+    if (!files) return;
+    addUploadFiles(files);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+    const files = e.dataTransfer.files;
+    if (files) addUploadFiles(files);
+  };
+
+  const addUploadFiles = (files: FileList) => {
+    const newItems: typeof uploadFiles = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!/\.(png|jpg|jpeg|gif|webp)$/i.test(file.name)) {
+        showToast(`⚠️ ${file.name}은(는) 이미지 파일이 아닙니다`);
+        continue;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        newItems.push({
+          file,
+          preview: event.target?.result as string,
+          name: file.name.replace(/\.[^.]+$/, ''),
+          rarity: 'common',
+          prob: '15',
+        });
+        if (newItems.length + uploadFiles.length >= files.length) {
+          setUploadFiles(prev => [...prev, ...newItems]);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleUploadCard = async () => {
-    if (!githubToken || !uploadFile || !uploadName) {
+  const updateUploadCard = (idx: number, field: string, value: any) => {
+    setUploadFiles(prev => {
+      const arr = [...prev];
+      (arr[idx] as any)[field] = value;
+      return arr;
+    });
+  };
+
+  const removeUploadCard = (idx: number) => {
+    setUploadFiles(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUploadCard = async (idx: number) => {
+    const card = uploadFiles[idx];
+    if (!githubToken || !card.name) {
       showToast('❌ 파일과 이름을 입력하세요'); return;
     }
-    const autoId = `card_${uploadFile.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9가-힣_-]/g, '_')}_${Date.now()}`;
+
+    const autoId = `card_${card.file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9가-힣_-]/g, '_')}_${Date.now()}_${idx}`;
+    
     try {
-      await postAdminUploadCard(githubToken, uploadFile, {
-        id: autoId, name: uploadName, rarity: uploadRarity,
-        probability: parseFloat(uploadProb) || 15,
+      updateUploadCard(idx, 'uploading', true);
+      await postAdminUploadCard(githubToken, card.file, {
+        id: autoId, name: card.name, rarity: card.rarity,
+        probability: parseFloat(card.prob) || 15,
       });
-      showToast(`✅ "${uploadName}" 카드 업로드 완료`);
-      setUploadFile(null); setUploadPreview(null);
-      setUploadName(''); setUploadProb('15');
-    } catch (e) { showToast(`❌ 업로드 실패: ${e instanceof Error ? e.message : e}`); }
+      showToast(`✅ "${card.name}" 카드 업로드 완료`);
+      removeUploadCard(idx);
+    } catch (e) {
+      updateUploadCard(idx, 'error', e instanceof Error ? e.message : '업로드 실패');
+      updateUploadCard(idx, 'uploading', false);
+    }
+  };
+
+  const handleUploadAllCards = async () => {
+    if (!githubToken || uploadFiles.length === 0) {
+      showToast('❌ 업로드할 카드가 없습니다'); return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < uploadFiles.length; i++) {
+      try {
+        updateUploadCard(i, 'uploading', true);
+        const card = uploadFiles[i];
+        const autoId = `card_${card.file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9가-힣_-]/g, '_')}_${Date.now()}_${i}`;
+        await postAdminUploadCard(githubToken, card.file, {
+          id: autoId, name: card.name, rarity: card.rarity,
+          probability: parseFloat(card.prob) || 15,
+        });
+        successCount++;
+        removeUploadCard(i);
+        i--;
+      } catch (e) {
+        failCount++;
+        updateUploadCard(i, 'error', e instanceof Error ? e.message : '업로드 실패');
+        updateUploadCard(i, 'uploading', false);
+      }
+    }
+
+    showToast(`✅ ${successCount}개 업로드 완료${failCount > 0 ? `, ❌ ${failCount}개 실패` : ''}`);
   };
 
   const handleEditUser = (u: UserSummary) => {
@@ -1135,45 +1230,134 @@ export const AdminPanel = ({
               이미지를 업로드하면 즉시 가챠 풀에 추가됩니다 (서버 재시작 불필요)
             </p>
 
-            {/* 이미지 선택 */}
-            <div className={styles.formRow} style={{ marginBottom: 16 }}>
-              <label className={styles.formLabel}>이미지 파일</label>
-              <input type="file" accept="image/*" className={styles.formInput}
-                onChange={handleUploadFileChange} />
+            {/* 드래그 앤 드롭 영역 */}
+            <div
+              className={`${styles.uploadDropZone} ${isDragActive ? styles.uploadDropZoneActive : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div className={styles.uploadDropContent}>
+                <div className={styles.uploadDropIcon}>📤</div>
+                <div className={styles.uploadDropText}>
+                  이미지를 드래그하거나 클릭하여 추가
+                </div>
+                <div className={styles.uploadDropSubtext}>
+                  PNG, JPG, GIF, WebP 파일 지원 (최대 10MB)
+                </div>
+              </div>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleUploadFileChange}
+                className={styles.uploadFileInput}
+              />
             </div>
-            {uploadPreview && (
-              <img src={uploadPreview} alt="preview"
-                style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 10, marginBottom: 16, border: '2px solid rgba(255,255,255,0.15)' }} />
+
+            {/* 선택된 카드 목록 */}
+            {uploadFiles.length > 0 && (
+              <>
+                <div style={{ marginTop: 20, marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>
+                    선택된 카드: <span style={{ color: '#e8c870' }}>{uploadFiles.length}</span>개
+                  </div>
+                  <button className={styles.formSubmitBtn} onClick={handleUploadAllCards}
+                    style={{ marginLeft: 'auto', width: 'auto' }}>
+                    🚀 모두 업로드
+                  </button>
+                </div>
+
+                <div className={styles.uploadCardsGrid}>
+                  {uploadFiles.map((card, idx) => (
+                    <div key={idx} className={styles.uploadCardItem}>
+                      {/* 미리보기 */}
+                      <div className={styles.uploadCardPreview}>
+                        <img src={card.preview} alt={card.name} />
+                        {card.uploading && (
+                          <div className={styles.uploadCardOverlay}>
+                            <div className={styles.spinner} style={{ width: 24, height: 24 }} />
+                          </div>
+                        )}
+                        {card.error && (
+                          <div className={styles.uploadCardError}>
+                            <span style={{ fontSize: 12 }}>❌</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 메타데이터 */}
+                      <div className={styles.uploadCardInfo}>
+                        <input
+                          className={styles.uploadCardName}
+                          placeholder="카드 이름"
+                          value={card.name}
+                          onChange={e => updateUploadCard(idx, 'name', e.target.value)}
+                          disabled={card.uploading}
+                        />
+                        <div className={styles.uploadCardMetaRow}>
+                          <select
+                            className={styles.uploadCardSelect}
+                            value={card.rarity}
+                            onChange={e => updateUploadCard(idx, 'rarity', e.target.value)}
+                            disabled={card.uploading}
+                          >
+                            <option value="legendary">⭐ 전설</option>
+                            <option value="epic">💜 에픽</option>
+                            <option value="rare">💙 레어</option>
+                            <option value="common">⬜ 일반</option>
+                          </select>
+                          <input
+                            type="number"
+                            min="1"
+                            className={styles.uploadCardProb}
+                            value={card.prob}
+                            onChange={e => updateUploadCard(idx, 'prob', e.target.value)}
+                            disabled={card.uploading}
+                            placeholder="가중치"
+                          />
+                        </div>
+                        {card.error && (
+                          <div style={{ fontSize: 11, color: '#ff6b6b', marginTop: 6 }}>
+                            {card.error}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 액션 버튼 */}
+                      <div className={styles.uploadCardActions}>
+                        {!card.uploading ? (
+                          <>
+                            <button
+                              className={styles.uploadCardBtn}
+                              onClick={() => handleUploadCard(idx)}
+                              title="이 카드 업로드"
+                            >
+                              📤
+                            </button>
+                            <button
+                              className={styles.uploadCardBtnDel}
+                              onClick={() => removeUploadCard(idx)}
+                              title="제거"
+                            >
+                              🗑
+                            </button>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: 12, color: '#e8c870', fontWeight: 700 }}>업로드 중…</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
-            <div className={styles.formGrid2}>
-              <div className={styles.formRow}>
-                <label className={styles.formLabel}>카드 이름</label>
-                <input className={styles.formInput} placeholder="예: 송싸이언" value={uploadName}
-                  onChange={e => setUploadName(e.target.value)} />
+            {uploadFiles.length === 0 && (
+              <div className={styles.emptyMsg} style={{ marginTop: 24 }}>
+                📁 여기에 이미지를 드래그하거나 위의 영역을 클릭하세요
               </div>
-              <div className={styles.formRow}>
-                <label className={styles.formLabel}>등급</label>
-                <select className={styles.formInput} value={uploadRarity}
-                  onChange={e => setUploadRarity(e.target.value as any)}>
-                  <option value="legendary">⭐ 전설</option>
-                  <option value="epic">💜 에픽</option>
-                  <option value="rare">💙 레어</option>
-                  <option value="common">⬜ 일반</option>
-                </select>
-              </div>
-              <div className={styles.formRow}>
-                <label className={styles.formLabel}>가중치 (확률)</label>
-                <input className={styles.formInput} type="number" min={1} value={uploadProb}
-                  onChange={e => setUploadProb(e.target.value)} />
-              </div>
-            </div>
-
-            <button className={styles.formSubmitBtn} onClick={handleUploadCard}
-              disabled={!uploadFile || !uploadName}
-              style={{ marginTop: 8 }}>
-              📤 카드 업로드
-            </button>
+            )}
           </div>
         )}
       </div>
