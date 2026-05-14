@@ -425,25 +425,39 @@ app.delete('/api/admin/synthesis/recipes/:id', async (req, res) => {
 
 // ─── Card upload ──────────────────────────────────────────────────────────────
 
-app.post('/api/admin/upload-card', upload.single('image'), async (req, res) => {
+app.post('/api/admin/upload-card', upload.fields([{ name: 'image' }, { name: 'resultCardImage' }]), async (req, res) => {
   const token = ghToken(req);
   const authUser = await verifyGithubToken(token);
   if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
-  const file = req.file;
-  if (!file) { res.status(400).json({ error: 'no_file' }); return; }
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+  const imageFile = files?.image?.[0];
+  if (!imageFile) { res.status(400).json({ error: 'no_file' }); return; }
   const { name, rarity, id, probability } = req.body as {
     name?: string; rarity?: string; id?: string; probability?: string;
   };
   if (!name || !rarity || !id) { res.status(400).json({ error: 'missing_fields' }); return; }
-  const filename = Buffer.from(file.originalname, 'latin1').toString('utf8');
-  const imageUrl = `/사진/${encodeURIComponent(filename)}`;
+  
+  const imageFilename = Buffer.from(imageFile.originalname, 'latin1').toString('utf8');
+  const imageUrl = `/사진/${encodeURIComponent(imageFilename)}`;
+  
+  let resultCardImageUrl: string | undefined;
+  const resultCardImageFile = files?.resultCardImage?.[0];
+  if (resultCardImageFile) {
+    const resultCardFilename = Buffer.from(resultCardImageFile.originalname, 'latin1').toString('utf8');
+    resultCardImageUrl = `/사진/${encodeURIComponent(resultCardFilename)}`;
+  }
+  
   try {
-    await addCardToGachaPool({
+    const cardData: any = {
       id, name, rarity,
       image: imageUrl,
       probability: parseFloat(probability ?? '15') || 15,
-    });
-    res.json({ ok: true, imageUrl });
+    };
+    if (resultCardImageUrl) {
+      cardData.resultCardImage = resultCardImageUrl;
+    }
+    await addCardToGachaPool(cardData);
+    res.json({ ok: true, imageUrl, resultCardImageUrl });
   } catch { res.status(500).json({ error: 'db_error' }); }
 });
 

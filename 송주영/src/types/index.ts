@@ -5,6 +5,7 @@ export interface GachaItem {
   name: string;
   rarity: Rarity;
   image: string;
+  resultCardImage?: string;
   probability: number;
 }
 

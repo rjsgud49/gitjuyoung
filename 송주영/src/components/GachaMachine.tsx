@@ -122,7 +122,14 @@ export const GachaMachine: React.FC<GachaMachineProps> = ({
       {/* 결과 모달 */}
       {showResult && resultItem && (
         <div className={styles.resultModal}>
-          <div className={styles.resultContainer}>
+          <div 
+            className={styles.resultContainer}
+            style={resultItem.item.resultCardImage ? {
+              backgroundImage: `url('${resultItem.item.resultCardImage}')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            } : {}}
+          >
             <div className={styles.resultContent}>
               {resultItem.isNew && (
                 <div className={styles.newItemBadge}>🎉 신규 획득! 🎉</div>

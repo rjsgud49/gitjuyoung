@@ -92,6 +92,8 @@ export const AdminPanel = ({
     name: string;
     rarity: 'common'|'rare'|'epic'|'legendary';
     prob: string;
+    resultCardImage?: File;
+    resultCardPreview?: string;
     uploading?: boolean;
     error?: string;
   }>>([]);
@@ -436,6 +438,7 @@ export const AdminPanel = ({
       await postAdminUploadCard(githubToken, card.file, {
         id: autoId, name: card.name, rarity: card.rarity,
         probability: parseFloat(card.prob) || 15,
+        resultCardImage: card.resultCardImage,
       });
       showToast(`✅ "${card.name}" 카드 업로드 완료`);
       removeUploadCard(idx);
@@ -461,6 +464,7 @@ export const AdminPanel = ({
         await postAdminUploadCard(githubToken, card.file, {
           id: autoId, name: card.name, rarity: card.rarity,
           probability: parseFloat(card.prob) || 15,
+          resultCardImage: card.resultCardImage,
         });
         successCount++;
         removeUploadCard(i);
@@ -1317,6 +1321,71 @@ export const AdminPanel = ({
                             placeholder="가중치"
                           />
                         </div>
+                        
+                        {/* 결과카드 이미지 선택 */}
+                        <div style={{ marginTop: 8 }}>
+                          <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', display: 'block', marginBottom: 4 }}>
+                            결과카드 배경 이미지 (선택사항)
+                          </label>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                if (e.currentTarget.files?.[0]) {
+                                  const file = e.currentTarget.files[0];
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    updateUploadCard(idx, 'resultCardImage', file);
+                                    updateUploadCard(idx, 'resultCardPreview', event.target?.result as string);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              disabled={card.uploading}
+                              style={{ display: 'none' }}
+                              id={`resultCardInput_${idx}`}
+                            />
+                            <label 
+                              htmlFor={`resultCardInput_${idx}`}
+                              style={{
+                                fontSize: 11,
+                                padding: '4px 8px',
+                                backgroundColor: 'rgba(232, 200, 112, 0.2)',
+                                border: '1px solid rgba(232, 200, 112, 0.4)',
+                                borderRadius: 4,
+                                cursor: card.uploading ? 'not-allowed' : 'pointer',
+                                opacity: card.uploading ? 0.5 : 1,
+                              }}
+                            >
+                              📸 선택
+                            </label>
+                            {card.resultCardPreview && (
+                              <>
+                                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>✓ 설정됨</span>
+                                <button
+                                  onClick={() => {
+                                    updateUploadCard(idx, 'resultCardImage', undefined);
+                                    updateUploadCard(idx, 'resultCardPreview', undefined);
+                                  }}
+                                  disabled={card.uploading}
+                                  style={{
+                                    fontSize: 10,
+                                    padding: '2px 6px',
+                                    backgroundColor: 'rgba(255, 107, 107, 0.2)',
+                                    border: 'none',
+                                    borderRadius: 3,
+                                    color: '#ff6b6b',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        
                         {card.error && (
                           <div style={{ fontSize: 11, color: '#ff6b6b', marginTop: 6 }}>
                             {card.error}

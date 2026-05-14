@@ -366,10 +366,13 @@ export async function deleteAdminSynthesisRecipe(token: string, id: string): Pro
 export async function postAdminUploadCard(
   token: string,
   file: File,
-  meta: { id: string; name: string; rarity: string; probability: number }
-): Promise<{ imageUrl: string }> {
+  meta: { id: string; name: string; rarity: string; probability: number; resultCardImage?: File }
+): Promise<{ imageUrl: string; resultCardImageUrl?: string }> {
   const form = new FormData();
   form.append('image', file);
+  if (meta.resultCardImage) {
+    form.append('resultCardImage', meta.resultCardImage);
+  }
   form.append('id', meta.id);
   form.append('name', meta.name);
   form.append('rarity', meta.rarity);
@@ -380,7 +383,7 @@ export async function postAdminUploadCard(
     body: form,
   });
   if (!r.ok) throw new Error(await r.text());
-  return r.json() as Promise<{ imageUrl: string }>;
+  return r.json() as Promise<{ imageUrl: string; resultCardImageUrl?: string }>;
 }
 
 export async function putApiAdminGlobal(
