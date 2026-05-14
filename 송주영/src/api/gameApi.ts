@@ -1,5 +1,17 @@
 import type { GachaItem } from '../types';
 import type { GachaEvent, Announcement } from '../types/admin';
+import { apiUrl } from '../config/apiBase';
+
+function coerceFarmConfig(j: Partial<FarmConfig> & Record<string, unknown>): FarmConfig {
+  const n = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  return {
+    commonMin: n(j.commonMin, 1), commonMax: n(j.commonMax, 3),
+    rareMin: n(j.rareMin, 3), rareMax: n(j.rareMax, 7),
+    epicMin: n(j.epicMin, 7), epicMax: n(j.epicMax, 15),
+    legendaryMin: n(j.legendaryMin, 15), legendaryMax: n(j.legendaryMax, 30),
+    specialMin: n(j.specialMin, 30), specialMax: n(j.specialMax, 50),
+  };
+}
 
 export interface GlobalApiPayload {
   gachaItems: GachaItem[];
@@ -29,7 +41,7 @@ export interface MeApiPayload {
 
 export async function checkApiHealth(): Promise<boolean> {
   try {
-    const r = await fetch('/api/health', { method: 'GET' });
+    const r = await fetch(apiUrl('/api/health'), { method: 'GET' });
     return r.ok;
   } catch {
     return false;
@@ -37,13 +49,13 @@ export async function checkApiHealth(): Promise<boolean> {
 }
 
 export async function fetchApiGlobal(): Promise<GlobalApiPayload> {
-  const r = await fetch('/api/global');
+  const r = await fetch(apiUrl('/api/global'));
   if (!r.ok) throw new Error(`global ${r.status}`);
   return r.json() as Promise<GlobalApiPayload>;
 }
 
 export async function fetchApiMe(token: string): Promise<MeApiPayload | null> {
-  const r = await fetch('/api/me', {
+  const r = await fetch(apiUrl('/api/me'), {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (r.status === 401) return null;
@@ -60,7 +72,7 @@ export async function putApiMe(
     githubData: MeApiPayload['githubData'];
   }
 ): Promise<void> {
-  const r = await fetch('/api/me', {
+  const r = await fetch(apiUrl('/api/me'), {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -72,7 +84,7 @@ export async function putApiMe(
 }
 
 export async function postCheckin(token: string): Promise<{ alreadyDone: boolean; coinsAdded: number }> {
-  const r = await fetch('/api/checkin', {
+  const r = await fetch(apiUrl('/api/checkin'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -91,7 +103,7 @@ export interface UserSummary {
 }
 
 export async function fetchAdminUsers(token: string): Promise<UserSummary[]> {
-  const r = await fetch('/api/admin/users', {
+  const r = await fetch(apiUrl('/api/admin/users'), {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error(`admin/users ${r.status}`);
@@ -101,7 +113,7 @@ export async function fetchAdminUsers(token: string): Promise<UserSummary[]> {
 export async function putAdminUser(
   token: string, login: string, data: { coins?: number; totalPulls?: number }
 ): Promise<void> {
-  const r = await fetch(`/api/admin/users/${encodeURIComponent(login)}`, {
+  const r = await fetch(apiUrl(`/api/admin/users/${encodeURIComponent(login)}`), {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -110,7 +122,7 @@ export async function putAdminUser(
 }
 
 export async function deleteAdminUser(token: string, login: string): Promise<void> {
-  const r = await fetch(`/api/admin/users/${encodeURIComponent(login)}`, {
+  const r = await fetch(apiUrl(`/api/admin/users/${encodeURIComponent(login)}`), {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -140,16 +152,17 @@ export interface FarmConfig {
   rareMin: number;   rareMax: number;
   epicMin: number;   epicMax: number;
   legendaryMin: number; legendaryMax: number;
+  specialMin: number; specialMax: number;
 }
 
 export async function fetchFarm(token: string): Promise<FarmStateData> {
-  const r = await fetch('/api/farm', { headers: { Authorization: `Bearer ${token}` } });
+  const r = await fetch(apiUrl('/api/farm'), { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) throw new Error(`farm ${r.status}`);
   return r.json() as Promise<FarmStateData>;
 }
 
 export async function putFarmPlace(token: string, item: { id: string; name: string; rarity: string; image: string }): Promise<void> {
-  const r = await fetch('/api/farm/place', {
+  const r = await fetch(apiUrl('/api/farm/place'), {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(item),
@@ -158,14 +171,14 @@ export async function putFarmPlace(token: string, item: { id: string; name: stri
 }
 
 export async function deleteFarmItem(token: string, itemId: string): Promise<void> {
-  const r = await fetch(`/api/farm/item/${encodeURIComponent(itemId)}`, {
+  const r = await fetch(apiUrl(`/api/farm/item/${encodeURIComponent(itemId)}`), {
     method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error(await r.text());
 }
 
 export async function postFarmCollect(token: string): Promise<{ coinsCollected: number }> {
-  const r = await fetch('/api/farm/collect', {
+  const r = await fetch(apiUrl('/api/farm/collect'), {
     method: 'POST', headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error(await r.text());
@@ -173,7 +186,7 @@ export async function postFarmCollect(token: string): Promise<{ coinsCollected: 
 }
 
 export async function postFarmUpgrade(token: string): Promise<{ newMaxCards: number; cost: number }> {
-  const r = await fetch('/api/farm/upgrade', {
+  const r = await fetch(apiUrl('/api/farm/upgrade'), {
     method: 'POST', headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error(await r.text());
@@ -183,7 +196,7 @@ export async function postFarmUpgrade(token: string): Promise<{ newMaxCards: num
 export async function postFarmEnhance(
   token: string, itemId: string, copies: number
 ): Promise<{ newValue: number }> {
-  const r = await fetch('/api/farm/enhance', {
+  const r = await fetch(apiUrl('/api/farm/enhance'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ itemId, copies }),
@@ -195,7 +208,7 @@ export async function postFarmEnhance(
 export async function postFarmDismantle(
   token: string, itemId: string, copies: number
 ): Promise<{ coinsGained: number }> {
-  const r = await fetch('/api/farm/dismantle', {
+  const r = await fetch(apiUrl('/api/farm/dismantle'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ itemId, copies }),
@@ -205,13 +218,13 @@ export async function postFarmDismantle(
 }
 
 export async function fetchAdminFarmConfig(token: string): Promise<FarmConfig> {
-  const r = await fetch('/api/admin/farm-config', { headers: { Authorization: `Bearer ${token}` } });
+  const r = await fetch(apiUrl('/api/admin/farm-config'), { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) throw new Error(`farm-config ${r.status}`);
-  return r.json() as Promise<FarmConfig>;
+  return coerceFarmConfig(await r.json());
 }
 
 export async function putAdminFarmConfig(token: string, cfg: FarmConfig): Promise<void> {
-  const r = await fetch('/api/admin/farm-config', {
+  const r = await fetch(apiUrl('/api/admin/farm-config'), {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(cfg),
@@ -220,7 +233,7 @@ export async function putAdminFarmConfig(token: string, cfg: FarmConfig): Promis
 }
 
 export async function postAdminRerollValues(token: string): Promise<{ updated: number }> {
-  const r = await fetch('/api/admin/reroll-values', {
+  const r = await fetch(apiUrl('/api/admin/reroll-values'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -238,13 +251,13 @@ export interface ActivityEntry {
 }
 
 export async function fetchActivity(): Promise<ActivityEntry[]> {
-  const r = await fetch('/api/activity');
+  const r = await fetch(apiUrl('/api/activity'));
   if (!r.ok) return [];
   return r.json() as Promise<ActivityEntry[]>;
 }
 
 export async function postActivity(token: string, itemName: string, itemRarity: string): Promise<void> {
-  await fetch('/api/activity', {
+  await fetch(apiUrl('/api/activity'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ itemName, itemRarity }),
@@ -254,9 +267,9 @@ export async function postActivity(token: string, itemName: string, itemRarity: 
 // ─── Public farm config ───────────────────────────────────────────────────────
 
 export async function fetchFarmConfigPublic(): Promise<FarmConfig> {
-  const r = await fetch('/api/farm-config');
+  const r = await fetch(apiUrl('/api/farm-config'));
   if (!r.ok) throw new Error('farm-config unavailable');
-  return r.json() as Promise<FarmConfig>;
+  return coerceFarmConfig(await r.json());
 }
 
 // ─── Auction API ──────────────────────────────────────────────────────────────
@@ -277,13 +290,13 @@ export interface AuctionEntry {
 }
 
 export async function fetchAuctions(): Promise<AuctionEntry[]> {
-  const r = await fetch('/api/auction');
+  const r = await fetch(apiUrl('/api/auction'));
   if (!r.ok) throw new Error(`auction ${r.status}`);
   return r.json() as Promise<AuctionEntry[]>;
 }
 
 export async function fetchMyAuctions(token: string): Promise<AuctionEntry[]> {
-  const r = await fetch('/api/auction/mine', { headers: { Authorization: `Bearer ${token}` } });
+  const r = await fetch(apiUrl('/api/auction/mine'), { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) throw new Error(`auction/mine ${r.status}`);
   return r.json() as Promise<AuctionEntry[]>;
 }
@@ -293,7 +306,7 @@ export async function postCreateAuction(
   item: { itemId: string; itemName: string; itemRarity: string; itemImage: string; individualValue: number },
   price: number
 ): Promise<{ auctionId: number }> {
-  const r = await fetch('/api/auction', {
+  const r = await fetch(apiUrl('/api/auction'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...item, price }),
@@ -303,14 +316,14 @@ export async function postCreateAuction(
 }
 
 export async function deleteAuction(token: string, auctionId: number): Promise<void> {
-  const r = await fetch(`/api/auction/${auctionId}`, {
+  const r = await fetch(apiUrl(`/api/auction/${auctionId}`), {
     method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error(await r.text());
 }
 
 export async function postBuyAuction(token: string, auctionId: number): Promise<{ coinsSpent: number }> {
-  const r = await fetch(`/api/auction/${auctionId}/buy`, {
+  const r = await fetch(apiUrl(`/api/auction/${auctionId}/buy`), {
     method: 'POST', headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error(await r.text());
@@ -330,7 +343,7 @@ export interface SynthesisRecipeApi {
 }
 
 export async function fetchSynthesisRecipes(): Promise<SynthesisRecipeApi[]> {
-  const r = await fetch('/api/synthesis/recipes');
+  const r = await fetch(apiUrl('/api/synthesis/recipes'));
   if (!r.ok) throw new Error(`synthesis/recipes ${r.status}`);
   return r.json() as Promise<SynthesisRecipeApi[]>;
 }
@@ -338,7 +351,7 @@ export async function fetchSynthesisRecipes(): Promise<SynthesisRecipeApi[]> {
 export async function postCraftSynthesis(
   token: string, recipeId: string
 ): Promise<{ resultItemId: string; resultItemName: string; resultItemRarity: string; resultItemImage: string }> {
-  const r = await fetch('/api/synthesis/craft', {
+  const r = await fetch(apiUrl('/api/synthesis/craft'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipeId }),
@@ -356,7 +369,7 @@ export async function postCraftSynthesis(
 }
 
 export async function postAdminSynthesisRecipe(token: string, recipe: SynthesisRecipeApi): Promise<void> {
-  const r = await fetch('/api/admin/synthesis/recipes', {
+  const r = await fetch(apiUrl('/api/admin/synthesis/recipes'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(recipe),
@@ -365,7 +378,7 @@ export async function postAdminSynthesisRecipe(token: string, recipe: SynthesisR
 }
 
 export async function deleteAdminSynthesisRecipe(token: string, id: string): Promise<void> {
-  const r = await fetch(`/api/admin/synthesis/recipes/${encodeURIComponent(id)}`, {
+  const r = await fetch(apiUrl(`/api/admin/synthesis/recipes/${encodeURIComponent(id)}`), {
     method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error(await r.text());
@@ -377,7 +390,7 @@ export async function postAdminUploadSynthesisRecipeImage(
 ): Promise<{ imageUrl: string }> {
   const form = new FormData();
   form.append('image', file);
-  const r = await fetch('/api/admin/upload-synthesis-recipe-image', {
+  const r = await fetch(apiUrl('/api/admin/upload-synthesis-recipe-image'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
@@ -400,7 +413,7 @@ export async function postAdminUploadCard(
   form.append('name', meta.name);
   form.append('rarity', meta.rarity);
   form.append('probability', String(meta.probability));
-  const r = await fetch('/api/admin/upload-card', {
+  const r = await fetch(apiUrl('/api/admin/upload-card'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
@@ -413,7 +426,7 @@ export async function putApiAdminGlobal(
   token: string,
   body: GlobalApiPayload
 ): Promise<void> {
-  const r = await fetch('/api/admin/global', {
+  const r = await fetch(apiUrl('/api/admin/global'), {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${token}`,

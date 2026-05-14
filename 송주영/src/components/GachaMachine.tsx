@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { GachaItem, GachaResult, CollectedItem } from '../types';
 import { simulateGacha, getRarityColor, getRarityLabel } from '../utils/gachaUtils';
+import { photoUrlForDisplay } from '../utils/photoUrl';
 import styles from '../styles/GachaMachine.module.css';
 
 interface GachaMachineProps {
@@ -84,7 +85,7 @@ export const GachaMachine: React.FC<GachaMachineProps> = ({
                   }}
                 >
                   <img
-                    src={item.image}
+                    src={photoUrlForDisplay(item.image)}
                     alt={item.name}
                     className={styles.itemImage}
                     onError={(e) => {
@@ -137,7 +138,7 @@ export const GachaMachine: React.FC<GachaMachineProps> = ({
 
               <div className={styles.resultImage}>
                 <img
-                  src={resultItem.item.image}
+                  src={photoUrlForDisplay(resultItem.item.image)}
                   alt={resultItem.item.name}
                   onError={(e) => {
                     (e.target as HTMLImageElement).src =

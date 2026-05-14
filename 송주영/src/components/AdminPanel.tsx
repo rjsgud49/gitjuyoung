@@ -804,7 +804,7 @@ export const AdminPanel = ({
                     <div className={styles.itemsGrid}>
                       {items.map(item => (
                         <div key={item.id} className={styles.itemCard} style={{ borderColor: getRarityColor(item.rarity) + '44' }}>
-                          <img src={item.image} alt={item.name} className={styles.itemCardImg}
+                          <img src={photoUrlForDisplay(item.image)} alt={item.name} className={styles.itemCardImg}
                             onError={e => { (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="60" height="60"%3E%3Crect fill="%23333" width="60" height="60"/%3E%3C/svg%3E'; }}
                           />
                           <div className={styles.itemCardInfo}>
@@ -1118,6 +1118,7 @@ export const AdminPanel = ({
                   ['epic',      '💜 에픽', 'epicMin',      'epicMax'],
                   ['rare',      '💙 레어', 'rareMin',      'rareMax'],
                   ['common',    '⬜ 일반', 'commonMin',    'commonMax'],
+                  ['special',   '✨ 스페셜', 'specialMin',  'specialMax'],
                 ] as [string, string, keyof FarmConfig, keyof FarmConfig][]).map(([, label, minKey, maxKey]) => (
                   <div key={minKey} className={styles.formGrid2} style={{ marginBottom: 12 }}>
                     <div className={styles.formRow}>
@@ -1294,7 +1295,7 @@ export const AdminPanel = ({
                           }}
                         >
                           {selCard ? (
-                            <img className={styles.ingredientPickerTriggerThumb} src={selCard.image} alt="" />
+                            <img className={styles.ingredientPickerTriggerThumb} src={photoUrlForDisplay(selCard.image)} alt="" />
                           ) : (
                             <div className={styles.ingredientPickerTriggerThumb} aria-hidden />
                           )}
@@ -1334,7 +1335,7 @@ export const AdminPanel = ({
                                     setIngredientSearch('');
                                   }}
                                 >
-                                  <img src={c.image} alt="" loading="lazy" />
+                                  <img src={photoUrlForDisplay(c.image)} alt="" loading="lazy" />
                                   <span className={styles.ingredientPickerCardName}>
                                     {(RARITY_EMOJI as Record<string, string>)[c.rarity] ?? '•'} {c.name}
                                   </span>

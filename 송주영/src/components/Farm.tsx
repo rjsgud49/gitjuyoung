@@ -7,6 +7,7 @@ import {
 } from '../api/gameApi';
 import type { FarmStateData, FarmPlacedItem } from '../api/gameApi';
 import { getRarityColor } from '../utils/gachaUtils';
+import { photoUrlForDisplay } from '../utils/photoUrl';
 import styles from '../styles/Farm.module.css';
 
 interface Props {
@@ -488,7 +489,7 @@ export function Farm({
                     </div>
                   )}
                   <img
-                    src={item.itemImage}
+                    src={photoUrlForDisplay(item.itemImage)}
                     alt={item.itemName}
                     className={styles.bouncingCardImg}
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
@@ -547,7 +548,7 @@ export function Farm({
                 style={{ borderColor: color + '55' }}
                 onClick={() => setSelectedItem(item)}
               >
-                <img src={item.itemImage} alt={item.itemName} className={styles.cardListImg}
+                <img src={photoUrlForDisplay(item.itemImage)} alt={item.itemName} className={styles.cardListImg}
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
                 <div className={styles.cardListInfo}>
                   <div className={styles.cardListName}>{item.itemName}</div>
@@ -618,7 +619,7 @@ function CardDetailModal({ item, owned, onClose, onRemove, onEnhance, onDismantl
       <div className={styles.detailModal} onClick={e => e.stopPropagation()}>
         <button className={styles.modalClose} onClick={onClose}>✕</button>
         <div className={styles.detailHeader}>
-          <img src={item.itemImage} alt={item.itemName} className={styles.detailImg}
+          <img src={photoUrlForDisplay(item.itemImage)} alt={item.itemName} className={styles.detailImg}
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
           <div className={styles.detailInfo}>
             <div className={styles.detailName}>{item.itemName}</div>
@@ -724,7 +725,7 @@ function CardPicker({ gachaItems, collectedItems, placedIds, onSelect, onClose }
                       >
                         {collected ? (
                           <>
-                            <img src={item.image} alt={item.name} className={styles.pickerItemImg}
+                            <img src={photoUrlForDisplay(item.image)} alt={item.name} className={styles.pickerItemImg}
                               onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
                             <div className={styles.pickerItemName}>{item.name}</div>
                             {isPlaced && <div className={styles.pickerItemPlaced}>배치됨</div>}

@@ -53,7 +53,7 @@ export interface UserSummary {
 export interface FarmPlacedItem {
   itemId: string;
   itemName: string;
-  itemRarity: 'common' | 'rare' | 'epic' | 'legendary';
+  itemRarity: 'common' | 'rare' | 'epic' | 'legendary' | 'special';
   itemImage: string;
   individualValue: number;
   placedAt: string;
@@ -71,17 +71,19 @@ export interface FarmConfig {
   rareMin: number;   rareMax: number;
   epicMin: number;   epicMax: number;
   legendaryMin: number; legendaryMax: number;
+  specialMin: number; specialMax: number;
 }
 
 async function loadFarmConfig(conn: Awaited<ReturnType<typeof pool.getConnection>>): Promise<FarmConfig> {
   const [rows] = await conn.query('SELECT * FROM farm_config WHERE id = 1') as any[];
   const r = (rows as any[])[0];
-  if (!r) return { commonMin: 1, commonMax: 3, rareMin: 3, rareMax: 7, epicMin: 7, epicMax: 15, legendaryMin: 15, legendaryMax: 30 };
+  if (!r) return { commonMin: 1, commonMax: 3, rareMin: 3, rareMax: 7, epicMin: 7, epicMax: 15, legendaryMin: 15, legendaryMax: 30, specialMin: 30, specialMax: 50 };
   return {
     commonMin: parseFloat(r.common_min), commonMax: parseFloat(r.common_max),
     rareMin: parseFloat(r.rare_min),     rareMax: parseFloat(r.rare_max),
     epicMin: parseFloat(r.epic_min),     epicMax: parseFloat(r.epic_max),
     legendaryMin: parseFloat(r.legendary_min), legendaryMax: parseFloat(r.legendary_max),
+    specialMin: parseFloat(r.special_min ?? '30'), specialMax: parseFloat(r.special_max ?? '50'),
   };
 }
 
@@ -92,18 +94,23 @@ export async function getFarmConfig(): Promise<FarmConfig> {
 }
 
 export async function saveFarmConfig(cfg: FarmConfig): Promise<void> {
-  applyFarmConfigToRanges(cfg); // 저장 즉시 서버 메모리 반영
+  const specialMin = Number.isFinite(cfg.specialMin) ? cfg.specialMin : 30;
+  const specialMax = Number.isFinite(cfg.specialMax) ? cfg.specialMax : 50;
+  const safe: FarmConfig = { ...cfg, specialMin, specialMax };
+  applyFarmConfigToRanges(safe); // 저장 즉시 서버 메모리 반영
   const conn = await pool.getConnection();
   try {
     await conn.query(
-      `INSERT INTO farm_config (id,common_min,common_max,rare_min,rare_max,epic_min,epic_max,legendary_min,legendary_max)
-       VALUES (1,?,?,?,?,?,?,?,?)
+      `INSERT INTO farm_config (id,common_min,common_max,rare_min,rare_max,epic_min,epic_max,legendary_min,legendary_max,special_min,special_max)
+       VALUES (1,?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
          common_min=VALUES(common_min), common_max=VALUES(common_max),
          rare_min=VALUES(rare_min),     rare_max=VALUES(rare_max),
          epic_min=VALUES(epic_min),     epic_max=VALUES(epic_max),
-         legendary_min=VALUES(legendary_min), legendary_max=VALUES(legendary_max)`,
-      [cfg.commonMin, cfg.commonMax, cfg.rareMin, cfg.rareMax, cfg.epicMin, cfg.epicMax, cfg.legendaryMin, cfg.legendaryMax]
+         legendary_min=VALUES(legendary_min), legendary_max=VALUES(legendary_max),
+         special_min=VALUES(special_min), special_max=VALUES(special_max)`,
+      [safe.commonMin, safe.commonMax, safe.rareMin, safe.rareMax, safe.epicMin, safe.epicMax, safe.legendaryMin, safe.legendaryMax,
+        safe.specialMin, safe.specialMax]
     );
   } finally { conn.release(); }
 }
@@ -181,15 +188,38 @@ export async function initDb(): Promise<void> {
         epic_min      DECIMAL(10,2) NOT NULL DEFAULT 7.00,
         epic_max      DECIMAL(10,2) NOT NULL DEFAULT 15.00,
         legendary_min DECIMAL(10,2) NOT NULL DEFAULT 15.00,
-        legendary_max DECIMAL(10,2) NOT NULL DEFAULT 30.00
+        legendary_max DECIMAL(10,2) NOT NULL DEFAULT 30.00,
+        special_min   DECIMAL(10,2) NOT NULL DEFAULT 30.00,
+        special_max   DECIMAL(10,2) NOT NULL DEFAULT 50.00
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
     await conn.query(`
       INSERT IGNORE INTO farm_config
-        (id, common_min, common_max, rare_min, rare_max, epic_min, epic_max, legendary_min, legendary_max)
-      VALUES (1, 1.00, 3.00, 3.00, 7.00, 7.00, 15.00, 15.00, 30.00)
+        (id, common_min, common_max, rare_min, rare_max, epic_min, epic_max, legendary_min, legendary_max, special_min, special_max)
+      VALUES (1, 1.00, 3.00, 3.00, 7.00, 7.00, 15.00, 15.00, 30.00, 30.00, 50.00)
     `);
     console.log('[db] farm_config table OK');
+
+    try {
+      await conn.query('ALTER TABLE farm_config ADD COLUMN special_min DECIMAL(10,2) NOT NULL DEFAULT 30.00');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/Duplicate column/i.test(msg)) console.warn('[db] farm_config.special_min:', msg);
+    }
+    try {
+      await conn.query('ALTER TABLE farm_config ADD COLUMN special_max DECIMAL(10,2) NOT NULL DEFAULT 50.00');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/Duplicate column/i.test(msg)) console.warn('[db] farm_config.special_max:', msg);
+    }
+
+    try {
+      await conn.query('ALTER TABLE user_farm MODIFY COLUMN item_rarity VARCHAR(50) NOT NULL');
+      console.log('[db] user_farm.item_rarity → VARCHAR(50)');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/Unknown table|doesn.*t exist/i.test(msg)) console.warn('[db] alter user_farm.item_rarity:', msg);
+    }
 
     // 서버 시작 시 DB 설정값을 메모리 RARITY_RANGES에 반영
     const [cfgRows] = await conn.query('SELECT * FROM farm_config WHERE id = 1') as any[];
@@ -204,6 +234,8 @@ export async function initDb(): Promise<void> {
         epicMax:      parseFloat(cfgRow.epic_max),
         legendaryMin: parseFloat(cfgRow.legendary_min),
         legendaryMax: parseFloat(cfgRow.legendary_max),
+        specialMin:   parseFloat(cfgRow.special_min ?? '30'),
+        specialMax:   parseFloat(cfgRow.special_max ?? '50'),
       });
       console.log('[db] RARITY_RANGES loaded from farm_config');
     }
@@ -238,6 +270,7 @@ export async function initDb(): Promise<void> {
 
 let RARITY_RANGES: Record<string, [number, number]> = {
   common: [1.0, 3.0], rare: [3.0, 7.0], epic: [7.0, 15.0], legendary: [15.0, 30.0],
+  special: [30.0, 50.0],
 };
 
 function applyFarmConfigToRanges(cfg: FarmConfig) {
@@ -246,6 +279,7 @@ function applyFarmConfigToRanges(cfg: FarmConfig) {
     rare:      [cfg.rareMin,      cfg.rareMax],
     epic:      [cfg.epicMin,      cfg.epicMax],
     legendary: [cfg.legendaryMin, cfg.legendaryMax],
+    special:   [cfg.specialMin,   cfg.specialMax],
   };
 }
 
@@ -365,7 +399,7 @@ export async function removeFarmCardByItemId(login: string, itemId: string): Pro
 }
 
 const ENHANCE_BOOST: Record<string, number> = {
-  common: 0.3, rare: 0.6, epic: 1.2, legendary: 2.5,
+  common: 0.3, rare: 0.6, epic: 1.2, legendary: 2.5, special: 3.0,
 };
 
 export async function enhanceFarmCard(
@@ -402,7 +436,7 @@ export async function enhanceFarmCard(
 }
 
 const DISMANTLE_COINS: Record<string, number> = {
-  common: 3, rare: 8, epic: 20, legendary: 50,
+  common: 3, rare: 8, epic: 20, legendary: 50, special: 80,
 };
 
 export async function dismantleDuplicates(
@@ -1083,10 +1117,7 @@ export async function performSynthesis(
     }
 
     // 결과 카드 지급 (없으면 INSERT, 있으면 count+1)
-    const specialRange = RARITY_RANGES['legendary'] ?? [15.0, 30.0];
-    const specialMin = specialRange[0] * 2;
-    const specialMax = specialRange[1] * 2;
-    const individualValue = parseFloat((specialMin + Math.random() * (specialMax - specialMin)).toFixed(2));
+    const individualValue = randomInRange(String(recipe.result_item_rarity || 'special'));
 
     const [existing] = await conn.query(
       'SELECT count FROM user_collected_items WHERE user_id = ? AND item_id = ?',

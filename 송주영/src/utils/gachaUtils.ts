@@ -47,13 +47,15 @@ export function setFarmProductionRanges(cfg: {
   rareMin: number;   rareMax: number;
   epicMin: number;   epicMax: number;
   legendaryMin: number; legendaryMax: number;
+  specialMin?: number;
+  specialMax?: number;
 }): void {
   _productionRanges = {
     common:    [cfg.commonMin,    cfg.commonMax],
     rare:      [cfg.rareMin,      cfg.rareMax],
     epic:      [cfg.epicMin,      cfg.epicMax],
     legendary: [cfg.legendaryMin, cfg.legendaryMax],
-    special:   [30.0, 50.0],
+    special:   [cfg.specialMin ?? 30, cfg.specialMax ?? 50],
   };
 }
 

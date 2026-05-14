@@ -1,6 +1,9 @@
+import { getApiBaseUrl } from '../config/apiBase';
+
 /**
  * `/사진/...` 경로를 img src에 안전하게 쓰기 위해
  * 파일명에 한글 등이 들어가 있고 URL 인코딩이 안 된 경우에만 인코딩합니다.
+ * `VITE_API_BASE_URL`이 있으면 API 서버 호스트를 붙입니다 (정적 호스팅과 API 분리 배포).
  */
 export function photoUrlForDisplay(src: string): string {
   if (!src) return src;
@@ -18,5 +21,7 @@ export function photoUrlForDisplay(src: string): string {
       return encodeURIComponent(seg);
     }
   });
-  return prefix + encoded.join('/');
+  const path = prefix + encoded.join('/');
+  const base = getApiBaseUrl();
+  return base ? `${base}${path}` : path;
 }

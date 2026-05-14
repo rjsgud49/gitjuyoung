@@ -77,7 +77,9 @@ CREATE TABLE IF NOT EXISTS farm_config (
   epic_min     DECIMAL(5,2) NOT NULL DEFAULT 7.00,
   epic_max     DECIMAL(5,2) NOT NULL DEFAULT 15.00,
   legendary_min DECIMAL(5,2) NOT NULL DEFAULT 15.00,
-  legendary_max DECIMAL(5,2) NOT NULL DEFAULT 30.00
+  legendary_max DECIMAL(5,2) NOT NULL DEFAULT 30.00,
+  special_min  DECIMAL(5,2) NOT NULL DEFAULT 30.00,
+  special_max  DECIMAL(5,2) NOT NULL DEFAULT 50.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 유저 농장 슬롯
@@ -87,7 +89,7 @@ CREATE TABLE IF NOT EXISTS user_farm (
   slot_index      INT          NOT NULL,
   item_id         VARCHAR(20)  NOT NULL,
   item_name       VARCHAR(200) NOT NULL,
-  item_rarity     ENUM('common','rare','epic','legendary') NOT NULL,
+  item_rarity     VARCHAR(50)  NOT NULL,
   item_image      VARCHAR(1000) NOT NULL,
   production_rate DECIMAL(6,2) NOT NULL,
   placed_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
