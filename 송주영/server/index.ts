@@ -4,7 +4,7 @@ import cors from 'cors';
 import multer from 'multer';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { verifyGithubToken, isAdminLogin } from './auth';
 import {
   initDb,
@@ -57,6 +57,9 @@ const PORT = parseInt(process.env.PORT ?? '8787', 10);
 const serverDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(serverDir, '..');
 const uploadsDir = join(projectRoot, 'uploads', '사진');
+const legacyPhotosDir = join(projectRoot, '사진');
+const publicPhotosDir = join(projectRoot, 'public', '사진');
+const distPhotosDir = join(projectRoot, 'dist', '사진');
 mkdirSync(uploadsDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -81,19 +84,24 @@ app.use(express.json({ limit: '8mb' }));
 // Uploaded images served BEFORE dist (so they override build output)
 // 일부 환경에서 라우트 매칭 시 퍼센트 인코딩 경로(/%EC%82%AC%EC%A7%84/...)가 그대로 들어오므로 둘 다 처리
 const photoRoutePaths = ['/사진', '/%EC%82%AC%EC%A7%84'] as const;
+const photoRoots = [uploadsDir, legacyPhotosDir, publicPhotosDir, distPhotosDir].filter((p, i, a) => a.indexOf(p) === i);
+const existingPhotoRoots = photoRoots.filter(p => existsSync(p));
+
 for (const photoRoutePath of photoRoutePaths) {
-  app.use(
-    photoRoutePath,
-    express.static(uploadsDir, {
-      setHeaders(res) {
-        res.setHeader('Cache-Control', 'public, max-age=86400');
-      },
-    }),
-  );
+  for (const root of existingPhotoRoots) {
+    app.use(
+      photoRoutePath,
+      express.static(root, {
+        setHeaders(res) {
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+        },
+      }),
+    );
+  }
   // 파일 없을 때 SPA 폴백(index.html)으로 가면 "이미지 URL인데 가차 화면"처럼 보임 → 명시 404
   app.use(photoRoutePath, (req, res) => {
-    console.warn(`[${photoRoutePath}] 404 ${req.method} ${req.originalUrl} (dir=${uploadsDir})`);
-    res.status(404).type('text/plain; charset=utf-8').send('이미지 파일이 서버에 없습니다. uploads/사진 경로와 배포를 확인하세요.');
+    console.warn(`[${photoRoutePath}] 404 ${req.method} ${req.originalUrl} (roots=${existingPhotoRoots.join(', ') || 'none'})`);
+    res.status(404).type('text/plain; charset=utf-8').send('이미지 파일이 서버에 없습니다. uploads/사진, 사진, public/사진, dist/사진 경로를 확인하세요.');
   });
 }
 
@@ -573,6 +581,6 @@ app.get('*', (_req, res) => {
 app.listen(PORT, () => {
   console.log(`[server] http://0.0.0.0:${PORT}  (GET /api/health)`);
   console.log(`[server] projectRoot → ${projectRoot} (cwd=${process.cwd()})`);
-  console.log(`[server] uploads/사진 → ${uploadsDir}`);
+  console.log(`[server] photo roots → ${existingPhotoRoots.join(' | ') || '(none)'}`);
   initDb().catch(err => console.error('[db] initDb failed:', err));
 });
