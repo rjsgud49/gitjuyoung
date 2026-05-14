@@ -4,7 +4,7 @@ import type { GachaEvent, Announcement } from '../types/admin';
 import { getRarityColor, getRarityLabel, setFarmProductionRanges } from '../utils/gachaUtils';
 import { fetchGitHubFullStats } from '../utils/githubUtils';
 import type { GitHubStats } from '../utils/githubUtils';
-import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, putAdminFarmConfig, postAdminRerollValues, fetchSynthesisRecipes, postAdminSynthesisRecipe, deleteAdminSynthesisRecipe, postAdminUploadCard, postAdminUploadImage } from '../api/gameApi';
+import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, putAdminFarmConfig, postAdminRerollValues, fetchSynthesisRecipes, postAdminSynthesisRecipe, deleteAdminSynthesisRecipe, postAdminUploadCard, postAdminUploadSynthesisRecipeImage } from '../api/gameApi';
 import type { SynthesisRecipeApi } from '../api/gameApi';
 import type { UserSummary, FarmConfig } from '../api/gameApi';
 import styles from '../styles/AdminPanel.module.css';
@@ -373,7 +373,7 @@ export const AdminPanel = ({
     }
     setSynthesisImgUploading(true);
     try {
-      const { imageUrl } = await postAdminUploadImage(githubToken, file);
+      const { imageUrl } = await postAdminUploadSynthesisRecipeImage(githubToken, file);
       setEditRecipe(p => p && ({ ...p, resultItemImage: imageUrl }));
       showToast('✅ 이미지 업로드 완료');
     } catch (err) {
