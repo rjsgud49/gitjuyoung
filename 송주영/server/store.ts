@@ -193,13 +193,7 @@ export async function initDb(): Promise<void> {
         special_max   DECIMAL(10,2) NOT NULL DEFAULT 50.00
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
-    await conn.query(`
-      INSERT IGNORE INTO farm_config
-        (id, common_min, common_max, rare_min, rare_max, epic_min, epic_max, legendary_min, legendary_max, special_min, special_max)
-      VALUES (1, 1.00, 3.00, 3.00, 7.00, 7.00, 15.00, 15.00, 30.00, 30.00, 50.00)
-    `);
-    console.log('[db] farm_config table OK');
-
+    // 기존 DB는 CREATE가 스킵되므로 컬럼 추가 후 INSERT (순서 중요)
     try {
       await conn.query('ALTER TABLE farm_config ADD COLUMN special_min DECIMAL(10,2) NOT NULL DEFAULT 30.00');
     } catch (e) {
@@ -212,6 +206,12 @@ export async function initDb(): Promise<void> {
       const msg = e instanceof Error ? e.message : String(e);
       if (!/Duplicate column/i.test(msg)) console.warn('[db] farm_config.special_max:', msg);
     }
+    await conn.query(`
+      INSERT IGNORE INTO farm_config
+        (id, common_min, common_max, rare_min, rare_max, epic_min, epic_max, legendary_min, legendary_max, special_min, special_max)
+      VALUES (1, 1.00, 3.00, 3.00, 7.00, 7.00, 15.00, 15.00, 30.00, 30.00, 50.00)
+    `);
+    console.log('[db] farm_config table OK');
 
     try {
       await conn.query('ALTER TABLE user_farm MODIFY COLUMN item_rarity VARCHAR(50) NOT NULL');
