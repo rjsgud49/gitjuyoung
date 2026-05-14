@@ -84,8 +84,19 @@ function ghToken(req: express.Request): string | undefined {
   return h.slice(7).trim();
 }
 
-app.get('/api/health', (_req, res) => {
-  const publicApiOrigin = (process.env.PUBLIC_API_ORIGIN || '').trim().replace(/\/$/, '') || undefined;
+/** 브라우저가 실제로 쓸 수 있는 API·/사진 베이스 URL (0.0.0.0 금지, Host 기반 추론) */
+function inferPublicApiOrigin(req: express.Request): string | undefined {
+  const fromEnv = (process.env.PUBLIC_API_ORIGIN || '').trim().replace(/\/$/, '');
+  if (fromEnv && !/0\.0\.0\.0/.test(fromEnv)) return fromEnv;
+  const rawHost = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? '').split(',')[0].trim();
+  if (!rawHost || /0\.0\.0\.0/.test(rawHost)) return undefined;
+  const rawProto = String(req.headers['x-forwarded-proto'] ?? req.protocol ?? 'http').split(',')[0].trim();
+  const proto = rawProto === 'https' ? 'https' : 'http';
+  return `${proto}://${rawHost}`;
+}
+
+app.get('/api/health', (req, res) => {
+  const publicApiOrigin = inferPublicApiOrigin(req);
   res.json({ ok: true, ...(publicApiOrigin ? { publicApiOrigin } : {}) });
 });
 
@@ -542,5 +553,6 @@ app.get('*', (_req, res) => {
 
 app.listen(PORT, () => {
   console.log(`[server] http://0.0.0.0:${PORT}  (GET /api/health)`);
+  console.log(`[server] uploads/사진 → ${uploadsDir}`);
   initDb().catch(err => console.error('[db] initDb failed:', err));
 });
