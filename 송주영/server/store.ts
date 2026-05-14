@@ -72,6 +72,24 @@ export interface FarmConfig {
   epicMin: number;   epicMax: number;
   legendaryMin: number; legendaryMax: number;
   specialMin: number; specialMax: number;
+  specialCardValues: Record<string, number>;
+}
+
+function sanitizeSpecialCardValues(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === 'number' && Number.isFinite(v) && v >= 0) out[k] = v;
+  }
+  return out;
+}
+
+function parseSpecialCardValues(raw: unknown): Record<string, number> {
+  if (typeof raw === 'string') {
+    try { return sanitizeSpecialCardValues(JSON.parse(raw)); }
+    catch { return {}; }
+  }
+  return sanitizeSpecialCardValues(raw);
 }
 
 /** 업로드 API(`/사진/${encodeURIComponent(filename)}`)와 동일 형식으로 이미지 경로를 정규화 */
@@ -183,13 +201,22 @@ async function normalizeLegacyImagePaths(conn: Awaited<ReturnType<typeof pool.ge
 async function loadFarmConfig(conn: Awaited<ReturnType<typeof pool.getConnection>>): Promise<FarmConfig> {
   const [rows] = await conn.query('SELECT * FROM farm_config WHERE id = 1') as any[];
   const r = (rows as any[])[0];
-  if (!r) return { commonMin: 1, commonMax: 3, rareMin: 3, rareMax: 7, epicMin: 7, epicMax: 15, legendaryMin: 15, legendaryMax: 30, specialMin: 30, specialMax: 50 };
+  if (!r) return {
+    commonMin: 1, commonMax: 3,
+    rareMin: 3, rareMax: 7,
+    epicMin: 7, epicMax: 15,
+    legendaryMin: 15, legendaryMax: 30,
+    specialMin: 30, specialMax: 50,
+    specialCardValues: {},
+  };
+  const specialCardValues = parseSpecialCardValues(r.special_card_values);
   return {
     commonMin: parseFloat(r.common_min), commonMax: parseFloat(r.common_max),
     rareMin: parseFloat(r.rare_min),     rareMax: parseFloat(r.rare_max),
     epicMin: parseFloat(r.epic_min),     epicMax: parseFloat(r.epic_max),
     legendaryMin: parseFloat(r.legendary_min), legendaryMax: parseFloat(r.legendary_max),
     specialMin: parseFloat(r.special_min ?? '30'), specialMax: parseFloat(r.special_max ?? '50'),
+    specialCardValues,
   };
 }
 
@@ -202,21 +229,22 @@ export async function getFarmConfig(): Promise<FarmConfig> {
 export async function saveFarmConfig(cfg: FarmConfig): Promise<void> {
   const specialMin = Number.isFinite(cfg.specialMin) ? cfg.specialMin : 30;
   const specialMax = Number.isFinite(cfg.specialMax) ? cfg.specialMax : 50;
-  const safe: FarmConfig = { ...cfg, specialMin, specialMax };
+  const safe: FarmConfig = { ...cfg, specialMin, specialMax, specialCardValues: sanitizeSpecialCardValues(cfg.specialCardValues) };
   applyFarmConfigToRanges(safe); // 저장 즉시 서버 메모리 반영
   const conn = await pool.getConnection();
   try {
     await conn.query(
-      `INSERT INTO farm_config (id,common_min,common_max,rare_min,rare_max,epic_min,epic_max,legendary_min,legendary_max,special_min,special_max)
-       VALUES (1,?,?,?,?,?,?,?,?,?,?)
+      `INSERT INTO farm_config (id,common_min,common_max,rare_min,rare_max,epic_min,epic_max,legendary_min,legendary_max,special_min,special_max,special_card_values)
+       VALUES (1,?,?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
          common_min=VALUES(common_min), common_max=VALUES(common_max),
          rare_min=VALUES(rare_min),     rare_max=VALUES(rare_max),
          epic_min=VALUES(epic_min),     epic_max=VALUES(epic_max),
          legendary_min=VALUES(legendary_min), legendary_max=VALUES(legendary_max),
-         special_min=VALUES(special_min), special_max=VALUES(special_max)`,
+         special_min=VALUES(special_min), special_max=VALUES(special_max),
+         special_card_values=VALUES(special_card_values)`,
       [safe.commonMin, safe.commonMax, safe.rareMin, safe.rareMax, safe.epicMin, safe.epicMax, safe.legendaryMin, safe.legendaryMax,
-        safe.specialMin, safe.specialMax]
+        safe.specialMin, safe.specialMax, JSON.stringify(safe.specialCardValues)]
     );
   } finally { conn.release(); }
 }
@@ -296,7 +324,8 @@ export async function initDb(): Promise<void> {
         legendary_min DECIMAL(10,2) NOT NULL DEFAULT 15.00,
         legendary_max DECIMAL(10,2) NOT NULL DEFAULT 30.00,
         special_min   DECIMAL(10,2) NOT NULL DEFAULT 30.00,
-        special_max   DECIMAL(10,2) NOT NULL DEFAULT 50.00
+        special_max   DECIMAL(10,2) NOT NULL DEFAULT 50.00,
+        special_card_values LONGTEXT NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
     // 기존 DB는 CREATE가 스킵되므로 컬럼 추가 후 INSERT (순서 중요)
@@ -312,10 +341,16 @@ export async function initDb(): Promise<void> {
       const msg = e instanceof Error ? e.message : String(e);
       if (!/Duplicate column/i.test(msg)) console.warn('[db] farm_config.special_max:', msg);
     }
+    try {
+      await conn.query('ALTER TABLE farm_config ADD COLUMN special_card_values LONGTEXT NULL');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/Duplicate column/i.test(msg)) console.warn('[db] farm_config.special_card_values:', msg);
+    }
     await conn.query(`
       INSERT IGNORE INTO farm_config
-        (id, common_min, common_max, rare_min, rare_max, epic_min, epic_max, legendary_min, legendary_max, special_min, special_max)
-      VALUES (1, 1.00, 3.00, 3.00, 7.00, 7.00, 15.00, 15.00, 30.00, 30.00, 50.00)
+        (id, common_min, common_max, rare_min, rare_max, epic_min, epic_max, legendary_min, legendary_max, special_min, special_max, special_card_values)
+      VALUES (1, 1.00, 3.00, 3.00, 7.00, 7.00, 15.00, 15.00, 30.00, 30.00, 50.00, '{}')
     `);
     console.log('[db] farm_config table OK');
 
@@ -342,6 +377,7 @@ export async function initDb(): Promise<void> {
         legendaryMax: parseFloat(cfgRow.legendary_max),
         specialMin:   parseFloat(cfgRow.special_min ?? '30'),
         specialMax:   parseFloat(cfgRow.special_max ?? '50'),
+        specialCardValues: parseSpecialCardValues(cfgRow.special_card_values),
       });
       console.log('[db] RARITY_RANGES loaded from farm_config');
     }
@@ -381,6 +417,7 @@ let RARITY_RANGES: Record<string, [number, number]> = {
   common: [1.0, 3.0], rare: [3.0, 7.0], epic: [7.0, 15.0], legendary: [15.0, 30.0],
   special: [30.0, 50.0],
 };
+let CURRENT_SPECIAL_CARD_VALUES: Record<string, number> = {};
 
 function applyFarmConfigToRanges(cfg: FarmConfig) {
   RARITY_RANGES = {
@@ -390,9 +427,16 @@ function applyFarmConfigToRanges(cfg: FarmConfig) {
     legendary: [cfg.legendaryMin, cfg.legendaryMax],
     special:   [cfg.specialMin,   cfg.specialMax],
   };
+  CURRENT_SPECIAL_CARD_VALUES = sanitizeSpecialCardValues(cfg.specialCardValues);
 }
 
-function randomInRange(rarity: string): number {
+function randomInRange(rarity: string, itemId?: string): number {
+  if (rarity === 'special' && itemId) {
+    const fixed = CURRENT_SPECIAL_CARD_VALUES[itemId];
+    if (typeof fixed === 'number' && Number.isFinite(fixed)) {
+      return parseFloat(fixed.toFixed(2));
+    }
+  }
   const [min, max] = RARITY_RANGES[rarity] ?? [1.0, 3.0];
   return parseFloat((min + Math.random() * (max - min)).toFixed(2));
 }
@@ -437,7 +481,7 @@ export async function getUserFarmState(login: string, githubId: number): Promise
     for (const r of farmRows as any[]) {
       const val = parseFloat(r.individual_value);
       if (isStaleValue(val, r.item_rarity)) {
-        const newVal = randomInRange(r.item_rarity);
+        const newVal = randomInRange(r.item_rarity, r.item_id);
         await conn.query(
           'UPDATE user_collected_items SET individual_value = ? WHERE user_id = ? AND item_id = ?',
           [newVal, u.id, r.item_id]
@@ -692,7 +736,7 @@ export async function saveGlobalState(g: GlobalState): Promise<void> {
         [g.gachaItems.map(i => [i.id, i.name, i.rarity, i.probability, normalizeStoredImagePath(i.image)])]
       );
       // 등급이 바뀐 카드: 등급 + 생산량 동시 재계산
-      for (const [rarity, [min, max]] of Object.entries(RARITY_RANGES)) {
+      for (const [rarity, [min, max]] of Object.entries(RARITY_RANGES).filter(([rarity]) => rarity !== 'special')) {
         const spread = max - min;
         await conn.query(`
           UPDATE user_collected_items uci
@@ -701,6 +745,20 @@ export async function saveGlobalState(g: GlobalState): Promise<void> {
               uci.individual_value = ROUND(? + RAND() * ?, 2)
           WHERE uci.item_rarity != gi.rarity AND gi.rarity = ?
         `, [min, spread, rarity]);
+      }
+      const [specialRows] = await conn.query(`
+        SELECT uci.user_id, uci.item_id
+        FROM user_collected_items uci
+        JOIN gacha_items gi ON uci.item_id = gi.id
+        WHERE uci.item_rarity != gi.rarity AND gi.rarity = 'special'
+      `) as any[];
+      for (const row of specialRows as Array<{ user_id: number; item_id: string }>) {
+        await conn.query(
+          `UPDATE user_collected_items
+           SET item_rarity = 'special', individual_value = ?
+           WHERE user_id = ? AND item_id = ?`,
+          [randomInRange('special', row.item_id), row.user_id, row.item_id]
+        );
       }
     }
 
@@ -761,7 +819,7 @@ export async function getOrCreateUser(login: string, githubId: number): Promise<
     for (const r of items as any[]) {
       const val = parseFloat(r.individual_value ?? '0');
       if (isStaleValue(val, r.item_rarity)) {
-        const newVal = randomInRange(r.item_rarity);
+        const newVal = randomInRange(r.item_rarity, r.item_id);
         await conn.query(
           'UPDATE user_collected_items SET individual_value = ? WHERE user_id = ? AND item_id = ?',
           [newVal, u.id, r.item_id]
@@ -1058,11 +1116,22 @@ export async function rerollAllIndividualValues(): Promise<{ updated: number }> 
   try {
     await conn.beginTransaction();
     let totalUpdated = 0;
-    for (const [rarity, [min, max]] of Object.entries(RARITY_RANGES)) {
+    for (const [rarity, [min, max]] of Object.entries(RARITY_RANGES).filter(([rarity]) => rarity !== 'special')) {
       const spread = max - min;
       const [result] = await conn.query(
         `UPDATE user_collected_items SET individual_value = ROUND(? + RAND() * ?, 2) WHERE item_rarity = ?`,
         [min, spread, rarity]
+      ) as any[];
+      totalUpdated += (result as any).affectedRows ?? 0;
+    }
+    const [specialRows] = await conn.query(
+      `SELECT user_id, item_id FROM user_collected_items WHERE item_rarity = 'special'`
+    ) as any[];
+    for (const row of specialRows as Array<{ user_id: number; item_id: string }>) {
+      const newVal = randomInRange('special', row.item_id);
+      const [result] = await conn.query(
+        `UPDATE user_collected_items SET individual_value = ? WHERE user_id = ? AND item_id = ?`,
+        [newVal, row.user_id, row.item_id]
       ) as any[];
       totalUpdated += (result as any).affectedRows ?? 0;
     }
@@ -1226,7 +1295,7 @@ export async function performSynthesis(
     }
 
     // 결과 카드 지급 (없으면 INSERT, 있으면 count+1)
-    const individualValue = randomInRange(String(recipe.result_item_rarity || 'special'));
+    const individualValue = randomInRange(String(recipe.result_item_rarity || 'special'), recipe.result_item_id);
 
     const [existing] = await conn.query(
       'SELECT count FROM user_collected_items WHERE user_id = ? AND item_id = ?',

@@ -133,6 +133,10 @@ export const AdminPanel = ({
       c => c.name.toLowerCase().includes(s) || c.id.toLowerCase().includes(s)
     );
   }, [gachaItems, ingredientSearch]);
+  const specialFarmCards = useMemo(
+    () => gachaItems.filter(c => c.rarity === 'special'),
+    [gachaItems]
+  );
 
   useEffect(() => {
     setIngredientPickerIndex(null);
@@ -329,9 +333,19 @@ export const AdminPanel = ({
 
   const handleSaveFarmCfg = async () => {
     if (!githubToken || !farmCfg) return;
+    const specialDefault = Math.max(0, parseFloat(((farmCfg.specialMin + farmCfg.specialMax) / 2).toFixed(2)));
+    const nextCfg: FarmConfig = {
+      ...farmCfg,
+      specialCardValues: specialFarmCards.reduce<Record<string, number>>((acc, card) => {
+        const raw = farmCfg.specialCardValues?.[card.id];
+        acc[card.id] = typeof raw === 'number' && Number.isFinite(raw) ? raw : specialDefault;
+        return acc;
+      }, {}),
+    };
     try {
-      await putAdminFarmConfig(githubToken, farmCfg);
-      setFarmProductionRanges(farmCfg); // 클라이언트 범위 즉시 반영
+      await putAdminFarmConfig(githubToken, nextCfg);
+      setFarmCfg(nextCfg);
+      setFarmProductionRanges(nextCfg); // 클라이언트 범위 즉시 반영
       showToast('✅ 농장 생산량 설정 저장 완료');
     } catch (e) {
       showToast(`❌ 저장 실패: ${e instanceof Error ? e.message : e}`);
@@ -1112,7 +1126,7 @@ export const AdminPanel = ({
               </button>
             </div>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: '0 0 16px' }}>
-              각 등급별 카드 배치 시 랜덤 생산 속도 범위 (코인/시간)
+              일반~전설 카드는 등급별 랜덤 범위, 스페셜 카드는 아래에서 카드별 개별 생산량을 설정합니다.
             </p>
             {farmCfg ? (
               <>
@@ -1121,8 +1135,10 @@ export const AdminPanel = ({
                   ['epic',      '💜 에픽', 'epicMin',      'epicMax'],
                   ['rare',      '💙 레어', 'rareMin',      'rareMax'],
                   ['common',    '⬜ 일반', 'commonMin',    'commonMax'],
-                  ['special',   '✨ 스페셜', 'specialMin',  'specialMax'],
-                ] as [string, string, keyof FarmConfig, keyof FarmConfig][]).map(([, label, minKey, maxKey]) => (
+                ] as [string, string,
+                  'legendaryMin' | 'epicMin' | 'rareMin' | 'commonMin',
+                  'legendaryMax' | 'epicMax' | 'rareMax' | 'commonMax'
+                ][]).map(([, label, minKey, maxKey]) => (
                   <div key={minKey} className={styles.formGrid2} style={{ marginBottom: 12 }}>
                     <div className={styles.formRow}>
                       <label className={styles.formLabel}>{label} 최소</label>
@@ -1140,6 +1156,46 @@ export const AdminPanel = ({
                     </div>
                   </div>
                 ))}
+                <div className={styles.specialCardConfigSection}>
+                  <div className={styles.specialCardConfigTitle}>✨ 스페셜 카드 개별 생산량 (코인/시간)</div>
+                  {specialFarmCards.length === 0 ? (
+                    <div className={styles.emptyMsg} style={{ padding: '14px 10px' }}>
+                      스페셜 등급 카드가 아직 없습니다.
+                    </div>
+                  ) : (
+                    <div className={styles.specialCardConfigList}>
+                      {specialFarmCards.map(card => (
+                        <div key={card.id} className={styles.specialCardConfigRow}>
+                          <div className={styles.specialCardConfigInfo}>
+                            <img src={photoUrlForDisplay(card.image)} alt="" />
+                            <div>
+                              <div className={styles.specialCardConfigName}>{card.name}</div>
+                              <div className={styles.specialCardConfigId}>{card.id}</div>
+                            </div>
+                          </div>
+                          <input
+                            className={styles.specialCardConfigInput}
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            value={farmCfg.specialCardValues?.[card.id] ?? Math.max(0, parseFloat(((farmCfg.specialMin + farmCfg.specialMax) / 2).toFixed(2)))}
+                            onChange={e => setFarmCfg(prev => {
+                              if (!prev) return prev;
+                              const parsed = parseFloat(e.target.value);
+                              return {
+                                ...prev,
+                                specialCardValues: {
+                                  ...(prev.specialCardValues ?? {}),
+                                  [card.id]: Number.isFinite(parsed) ? Math.max(0, parsed) : 0,
+                                },
+                              };
+                            })}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button className={styles.formSubmitBtn} onClick={handleSaveFarmCfg}>
                   ✅ 저장
                 </button>

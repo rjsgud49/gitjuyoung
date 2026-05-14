@@ -4,12 +4,22 @@ import { apiUrl, relativeApiHealthPath } from '../config/apiBase';
 
 function coerceFarmConfig(j: Partial<FarmConfig> & Record<string, unknown>): FarmConfig {
   const n = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const rawSpecialCardValues = j.specialCardValues;
+  const specialCardValues: Record<string, number> = {};
+  if (rawSpecialCardValues && typeof rawSpecialCardValues === 'object') {
+    for (const [k, v] of Object.entries(rawSpecialCardValues as Record<string, unknown>)) {
+      if (typeof v === 'number' && Number.isFinite(v) && v >= 0) {
+        specialCardValues[k] = v;
+      }
+    }
+  }
   return {
     commonMin: n(j.commonMin, 1), commonMax: n(j.commonMax, 3),
     rareMin: n(j.rareMin, 3), rareMax: n(j.rareMax, 7),
     epicMin: n(j.epicMin, 7), epicMax: n(j.epicMax, 15),
     legendaryMin: n(j.legendaryMin, 15), legendaryMax: n(j.legendaryMax, 30),
     specialMin: n(j.specialMin, 30), specialMax: n(j.specialMax, 50),
+    specialCardValues,
   };
 }
 
@@ -153,6 +163,7 @@ export interface FarmConfig {
   epicMin: number;   epicMax: number;
   legendaryMin: number; legendaryMax: number;
   specialMin: number; specialMax: number;
+  specialCardValues: Record<string, number>;
 }
 
 export async function fetchFarm(token: string): Promise<FarmStateData> {

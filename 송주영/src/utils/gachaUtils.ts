@@ -41,6 +41,7 @@ let _productionRanges: Record<GachaItem['rarity'], [number, number]> = {
   legendary: [15.0, 30.0],
   special:   [30.0, 50.0],
 };
+let _specialCardValues: Record<string, number> = {};
 
 export function setFarmProductionRanges(cfg: {
   commonMin: number; commonMax: number;
@@ -49,6 +50,7 @@ export function setFarmProductionRanges(cfg: {
   legendaryMin: number; legendaryMax: number;
   specialMin?: number;
   specialMax?: number;
+  specialCardValues?: Record<string, number>;
 }): void {
   _productionRanges = {
     common:    [cfg.commonMin,    cfg.commonMax],
@@ -57,9 +59,17 @@ export function setFarmProductionRanges(cfg: {
     legendary: [cfg.legendaryMin, cfg.legendaryMax],
     special:   [cfg.specialMin ?? 30, cfg.specialMax ?? 50],
   };
+  _specialCardValues = cfg.specialCardValues ?? {};
 }
 
-function getIndividualValue(rarity: GachaItem['rarity']): number {
+function getIndividualValue(item: Pick<GachaItem, 'id' | 'rarity'>): number {
+  if (item.rarity === 'special') {
+    const fixed = _specialCardValues[item.id];
+    if (typeof fixed === 'number' && Number.isFinite(fixed)) {
+      return parseFloat(fixed.toFixed(2));
+    }
+  }
+  const rarity = item.rarity;
   const [min, max] = _productionRanges[rarity];
   return parseFloat((min + Math.random() * (max - min)).toFixed(2));
 }
@@ -81,7 +91,7 @@ export function addItemToCollection(
       ...item,
       count: 1,
       firstAcquiredAt: new Date(),
-      individualValue: getIndividualValue(item.rarity),
+      individualValue: getIndividualValue(item),
     });
   }
 
