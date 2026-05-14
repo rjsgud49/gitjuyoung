@@ -1,6 +1,6 @@
 import type { GachaItem } from '../types';
 import type { GachaEvent, Announcement } from '../types/admin';
-import { apiUrl } from '../config/apiBase';
+import { apiUrl, relativeApiHealthPath } from '../config/apiBase';
 
 function coerceFarmConfig(j: Partial<FarmConfig> & Record<string, unknown>): FarmConfig {
   const n = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -41,7 +41,7 @@ export interface MeApiPayload {
 
 export async function checkApiHealth(): Promise<boolean> {
   try {
-    const r = await fetch(apiUrl('/api/health'), { method: 'GET' });
+    const r = await fetch(relativeApiHealthPath(), { method: 'GET' });
     return r.ok;
   } catch {
     return false;

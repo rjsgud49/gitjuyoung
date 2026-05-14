@@ -1,9 +1,38 @@
+declare global {
+  interface Window {
+    /** index.html에서 주입: API·/사진 이 있는 절대 URL (끝 슬래시 없음) */
+    __API_ORIGIN__?: string;
+  }
+}
+
+/** Vite BASE_URL을 반영한 상대 `/api/health` 경로 (부트스트랩용) */
+export function relativeApiHealthPath(): string {
+  const raw = import.meta.env.BASE_URL || '/';
+  const base = raw.endsWith('/') ? raw : `${raw}/`;
+  return `${base}api/health`.replace(/\/{2,}/g, '/');
+}
+
+/** 서버 `/api/health`의 `publicApiOrigin`으로 설정 (런타임) */
+let runtimeApiOrigin = '';
+
+export function setRuntimeApiOrigin(origin: string | undefined | null): void {
+  if (origin == null || String(origin).trim() === '') {
+    runtimeApiOrigin = '';
+    return;
+  }
+  runtimeApiOrigin = String(origin).trim().replace(/\/$/, '');
+}
+
 /**
- * 프론트(정적)와 API가 다른 도메인/포트일 때 빌드 시 설정합니다.
- * 예: VITE_API_BASE_URL=https://game-api.example.com
- * 비우면 같은 출처에서 `/api`, `/사진` 요청 (nginx 등으로 한 호스트에 묶인 경우).
+ * 우선순위: 런타임(health) → window.__API_ORIGIN__ → Vite 빌드 변수
+ * 비우면 브라우저가 HTML과 같은 호스트로 `/api`, `/사진` 요청.
  */
 export function getApiBaseUrl(): string {
+  if (runtimeApiOrigin) return runtimeApiOrigin;
+  if (typeof window !== 'undefined' && window.__API_ORIGIN__) {
+    const w = String(window.__API_ORIGIN__).trim();
+    if (w) return w.replace(/\/$/, '');
+  }
   const v = import.meta.env.VITE_API_BASE_URL;
   if (v == null || String(v).trim() === '') return '';
   return String(v).trim().replace(/\/$/, '');

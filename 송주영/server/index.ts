@@ -2,8 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { join, dirname, extname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { mkdirSync } from 'fs';
 import { verifyGithubToken, isAdminLogin } from './auth';
 import {
@@ -51,11 +50,10 @@ interface ActivityEntry {
 const activityLog: ActivityEntry[] = [];
 const MAX_ACTIVITY = 60;
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT ?? '8787', 10);
 
-// ─── Uploads directory (persists across builds) ───────────────────────────────
-const uploadsDir = join(__dirname, '../uploads/사진');
+// ─── Uploads directory (프로젝트 루트 기준 — tsx/빌드 산출물 위치와 무관하게 동일 경로) ─
+const uploadsDir = join(process.cwd(), 'uploads', '사진');
 mkdirSync(uploadsDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -87,7 +85,8 @@ function ghToken(req: express.Request): string | undefined {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
+  const publicApiOrigin = (process.env.PUBLIC_API_ORIGIN || '').trim().replace(/\/$/, '') || undefined;
+  res.json({ ok: true, ...(publicApiOrigin ? { publicApiOrigin } : {}) });
 });
 
 app.get('/api/global', async (_req, res) => {
@@ -534,8 +533,8 @@ app.post('/api/auction/:id/buy', async (req, res) => {
   catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
 });
 
-// 프로덕션: 빌드된 프론트 정적 파일 서빙
-const distPath = join(__dirname, '../dist');
+// 프로덕션: 빌드된 프론트 정적 파일 서빙 (프로젝트 루트 기준)
+const distPath = join(process.cwd(), 'dist');
 app.use(express.static(distPath));
 app.get('*', (_req, res) => {
   res.sendFile(join(distPath, 'index.html'));
