@@ -461,6 +461,22 @@ app.post('/api/admin/upload-card', upload.fields([{ name: 'image' }, { name: 're
   } catch { res.status(500).json({ error: 'db_error' }); }
 });
 
+app.post('/api/admin/upload-synthesis-recipe-image', upload.single('image'), async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
+  
+  const imageFile = req.file;
+  if (!imageFile) { res.status(400).json({ error: 'no_file' }); return; }
+  
+  const imageFilename = Buffer.from(imageFile.originalname, 'latin1').toString('utf8');
+  const imageUrl = `/사진/${encodeURIComponent(imageFilename)}`;
+  
+  try {
+    res.json({ ok: true, imageUrl });
+  } catch { res.status(500).json({ error: 'error' }); }
+});
+
 // ─── Auction routes ───────────────────────────────────────────────────────────
 
 app.get('/api/auction', async (_req, res) => {

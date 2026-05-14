@@ -363,6 +363,21 @@ export async function deleteAdminSynthesisRecipe(token: string, id: string): Pro
   if (!r.ok) throw new Error(await r.text());
 }
 
+export async function postAdminUploadSynthesisRecipeImage(
+  token: string,
+  file: File
+): Promise<{ imageUrl: string }> {
+  const form = new FormData();
+  form.append('image', file);
+  const r = await fetch('/api/admin/upload-synthesis-recipe-image', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ imageUrl: string }>;
+}
+
 export async function postAdminUploadCard(
   token: string,
   file: File,

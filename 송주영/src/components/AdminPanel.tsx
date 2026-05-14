@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GachaItem } from '../types';
 import type { GachaEvent, Announcement } from '../types/admin';
 import { getRarityColor, getRarityLabel, setFarmProductionRanges } from '../utils/gachaUtils';
 import { fetchGitHubFullStats } from '../utils/githubUtils';
 import type { GitHubStats } from '../utils/githubUtils';
-import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, putAdminFarmConfig, postAdminRerollValues, fetchSynthesisRecipes, postAdminSynthesisRecipe, deleteAdminSynthesisRecipe, postAdminUploadCard } from '../api/gameApi';
+import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, putAdminFarmConfig, postAdminRerollValues, fetchSynthesisRecipes, postAdminSynthesisRecipe, deleteAdminSynthesisRecipe, postAdminUploadCard, postAdminUploadImage } from '../api/gameApi';
 import type { SynthesisRecipeApi } from '../api/gameApi';
 import type { UserSummary, FarmConfig } from '../api/gameApi';
 import styles from '../styles/AdminPanel.module.css';
@@ -85,6 +85,8 @@ export const AdminPanel = ({
   const [recipes, setRecipes] = useState<SynthesisRecipeApi[]>([]);
   const [recipesLoaded, setRecipesLoaded] = useState(false);
   const [editRecipe, setEditRecipe] = useState<SynthesisRecipeApi | null>(null);
+  const synthesisResultImageInputRef = useRef<HTMLInputElement>(null);
+  const [synthesisImgUploading, setSynthesisImgUploading] = useState(false);
   // Upload
   const [uploadFiles, setUploadFiles] = useState<Array<{
     file: File;
@@ -358,6 +360,27 @@ export const AdminPanel = ({
       showToast('🗑️ 레시피 삭제 완료');
       setRecipes(prev => prev.filter(r => r.id !== id));
     } catch (e) { showToast(`❌ 삭제 실패: ${e instanceof Error ? e.message : e}`); }
+  };
+
+  const handleSynthesisResultImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.currentTarget.files?.[0];
+    e.currentTarget.value = '';
+    if (!file) return;
+    if (!githubToken) { showToast('❌ GitHub 관리자 로그인이 필요합니다'); return; }
+    if (!/\.(png|jpg|jpeg|gif|webp)$/i.test(file.name)) {
+      showToast('⚠️ PNG, JPG, GIF, WEBP만 업로드할 수 있습니다');
+      return;
+    }
+    setSynthesisImgUploading(true);
+    try {
+      const { imageUrl } = await postAdminUploadImage(githubToken, file);
+      setEditRecipe(p => p && ({ ...p, resultItemImage: imageUrl }));
+      showToast('✅ 이미지 업로드 완료');
+    } catch (err) {
+      showToast(`❌ 업로드 실패: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSynthesisImgUploading(false);
+    }
   };
 
   // ── Card upload ───────────────────────────────────────────────────────────────
@@ -1161,10 +1184,53 @@ export const AdminPanel = ({
                       <option value="common">⬜ 일반</option>
                     </select>
                   </div>
-                  <div className={styles.formRow}>
-                    <label className={styles.formLabel}>이미지 URL</label>
-                    <input className={styles.formInput} placeholder="/사진/카드이름.png" value={editRecipe.resultItemImage}
-                      onChange={e => setEditRecipe(p => p && ({ ...p, resultItemImage: e.target.value }))} />
+                  <div className={styles.formRow} style={{ gridColumn: '1 / -1' }}>
+                    <label className={styles.formLabel}>결과 카드 이미지</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                      {editRecipe.resultItemImage ? (
+                        <img
+                          src={editRecipe.resultItemImage}
+                          alt="결과 미리보기"
+                          style={{
+                            width: 52, height: 52, borderRadius: 8, objectFit: 'cover',
+                            border: '1px solid rgba(255,200,100,0.35)', flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 52, height: 52, borderRadius: 8, flexShrink: 0,
+                            background: 'rgba(255,255,255,0.06)', border: '1px dashed rgba(255,200,100,0.25)',
+                          }}
+                        />
+                      )}
+                      <input
+                        ref={synthesisResultImageInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif,image/webp"
+                        className={styles.uploadFileInput}
+                        onChange={handleSynthesisResultImageFile}
+                        disabled={synthesisImgUploading}
+                      />
+                      <button
+                        type="button"
+                        className={styles.fetchBtn}
+                        disabled={!githubToken || synthesisImgUploading}
+                        onClick={() => synthesisResultImageInputRef.current?.click()}
+                      >
+                        {synthesisImgUploading ? '업로드 중…' : '📎 사진 업로드'}
+                      </button>
+                      <input
+                        className={styles.formInput}
+                        style={{ flex: '1 1 160px', minWidth: 140 }}
+                        placeholder="/사진/카드이름.png (직접 입력 가능)"
+                        value={editRecipe.resultItemImage}
+                        onChange={e => setEditRecipe(p => p && ({ ...p, resultItemImage: e.target.value }))}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 6 }}>
+                      서버의 <code style={{ color: 'rgba(232,200,112,0.85)' }}>/사진</code> 폴더에 저장되며, 가챠 풀에는 추가되지 않습니다.
+                    </div>
                   </div>
                 </div>
 
