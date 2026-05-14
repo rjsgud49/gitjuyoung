@@ -74,6 +74,112 @@ export interface FarmConfig {
   specialMin: number; specialMax: number;
 }
 
+/** 업로드 API(`/사진/${encodeURIComponent(filename)}`)와 동일 형식으로 이미지 경로를 정규화 */
+function normalizeStoredImagePath(raw: unknown): string {
+  const src = typeof raw === 'string' ? raw.trim() : '';
+  if (!src) return '';
+  if (src.startsWith('data:') || /^https?:\/\//i.test(src)) return src;
+
+  let path = src;
+  if (path.startsWith('/%EC%82%AC%EC%A7%84/')) path = `/사진/${path.slice('/%EC%82%AC%EC%A7%84/'.length)}`;
+  if (path.startsWith('/uploads/사진/')) path = `/사진/${path.slice('/uploads/사진/'.length)}`;
+  else if (path.startsWith('/uploads/')) path = `/사진/${path.slice('/uploads/'.length)}`;
+  else if (!path.startsWith('/사진/')) path = `/사진/${path.replace(/^\/+/, '')}`;
+
+  const [withoutHash] = path.split('#');
+  const [withoutQuery] = withoutHash.split('?');
+  const rest = withoutQuery.slice('/사진/'.length);
+  const encoded = rest
+    .split('/')
+    .filter(Boolean)
+    .map(seg => {
+      try { return encodeURIComponent(decodeURIComponent(seg)); }
+      catch { return encodeURIComponent(seg); }
+    })
+    .join('/');
+  return `/사진/${encoded}`;
+}
+
+/** 기존 DB에 저장된 legacy 이미지 경로(/uploads, 비인코딩 파일명 등)를 업로드 API 규칙으로 통일 */
+async function normalizeLegacyImagePaths(conn: Awaited<ReturnType<typeof pool.getConnection>>): Promise<void> {
+  let total = 0;
+
+  try {
+    const [rows] = await conn.query('SELECT id, image FROM gacha_items') as any[];
+    for (const r of rows as any[]) {
+      const normalized = normalizeStoredImagePath(r.image);
+      if (normalized && normalized !== r.image) {
+        await conn.query('UPDATE gacha_items SET image = ? WHERE id = ?', [normalized, r.id]);
+        total++;
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/Unknown table|doesn.*t exist|Unknown column/i.test(msg)) console.warn('[db] normalize gacha_items.image:', msg);
+  }
+
+  try {
+    const [rows] = await conn.query('SELECT id, result_item_image FROM synthesis_recipes') as any[];
+    for (const r of rows as any[]) {
+      const normalized = normalizeStoredImagePath(r.result_item_image);
+      if (normalized && normalized !== r.result_item_image) {
+        await conn.query('UPDATE synthesis_recipes SET result_item_image = ? WHERE id = ?', [normalized, r.id]);
+        total++;
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/Unknown table|doesn.*t exist|Unknown column/i.test(msg)) console.warn('[db] normalize synthesis_recipes.result_item_image:', msg);
+  }
+
+  try {
+    const [rows] = await conn.query('SELECT user_id, item_id, item_image FROM user_collected_items') as any[];
+    for (const r of rows as any[]) {
+      const normalized = normalizeStoredImagePath(r.item_image);
+      if (normalized && normalized !== r.item_image) {
+        await conn.query(
+          'UPDATE user_collected_items SET item_image = ? WHERE user_id = ? AND item_id = ?',
+          [normalized, r.user_id, r.item_id],
+        );
+        total++;
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/Unknown table|doesn.*t exist|Unknown column/i.test(msg)) console.warn('[db] normalize user_collected_items.item_image:', msg);
+  }
+
+  try {
+    const [rows] = await conn.query('SELECT id, item_image FROM user_farm') as any[];
+    for (const r of rows as any[]) {
+      const normalized = normalizeStoredImagePath(r.item_image);
+      if (normalized && normalized !== r.item_image) {
+        await conn.query('UPDATE user_farm SET item_image = ? WHERE id = ?', [normalized, r.id]);
+        total++;
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/Unknown table|doesn.*t exist|Unknown column/i.test(msg)) console.warn('[db] normalize user_farm.item_image:', msg);
+  }
+
+  try {
+    const [rows] = await conn.query('SELECT id, item_image FROM card_auctions') as any[];
+    for (const r of rows as any[]) {
+      const normalized = normalizeStoredImagePath(r.item_image);
+      if (normalized && normalized !== r.item_image) {
+        await conn.query('UPDATE card_auctions SET item_image = ? WHERE id = ?', [normalized, r.id]);
+        total++;
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/Unknown table|doesn.*t exist|Unknown column/i.test(msg)) console.warn('[db] normalize card_auctions.item_image:', msg);
+  }
+
+  if (total > 0) console.log(`[db] normalized legacy image paths: ${total}`);
+}
+
 async function loadFarmConfig(conn: Awaited<ReturnType<typeof pool.getConnection>>): Promise<FarmConfig> {
   const [rows] = await conn.query('SELECT * FROM farm_config WHERE id = 1') as any[];
   const r = (rows as any[])[0];
@@ -240,6 +346,9 @@ export async function initDb(): Promise<void> {
       console.log('[db] RARITY_RANGES loaded from farm_config');
     }
 
+    // 과거 데이터도 업로드 API와 같은 이미지 경로 저장 규칙으로 통일
+    await normalizeLegacyImagePaths(conn);
+
     // DEFAULT_ITEMS 버전 체크 → 새 카드 자동 머지
     const [vRows] = await conn.query('SELECT gacha_items_version FROM global_config WHERE id = 1') as any[];
     const dbVersion = (vRows as any[])[0]?.gacha_items_version;
@@ -250,7 +359,7 @@ export async function initDb(): Promise<void> {
       if (newItems.length > 0) {
         await conn.query(
           'INSERT INTO gacha_items (id, name, rarity, probability, image) VALUES ?',
-          [newItems.map(i => [i.id, i.name, i.rarity, i.probability, i.image])]
+          [newItems.map(i => [i.id, i.name, i.rarity, i.probability, normalizeStoredImagePath(i.image)])]
         );
         console.log(`[db] ${newItems.length}개 새 카드 머지 완료 (${ITEMS_VERSION})`);
       }
@@ -383,7 +492,7 @@ export async function placeFarmCard(
     await conn.query(
       `INSERT INTO user_farm (user_id, item_id, item_name, item_rarity, item_image)
        VALUES (?, ?, ?, ?, ?)`,
-      [u.id, item.id, item.name, item.rarity, item.image]
+      [u.id, item.id, item.name, item.rarity, normalizeStoredImagePath(item.image)]
     );
   } finally { conn.release(); }
 }
@@ -580,7 +689,7 @@ export async function saveGlobalState(g: GlobalState): Promise<void> {
     if (g.gachaItems.length > 0) {
       await conn.query(
         'INSERT INTO gacha_items (id, name, rarity, probability, image) VALUES ?',
-        [g.gachaItems.map(i => [i.id, i.name, i.rarity, i.probability, i.image])]
+        [g.gachaItems.map(i => [i.id, i.name, i.rarity, i.probability, normalizeStoredImagePath(i.image)])]
       );
       // 등급이 바뀐 카드: 등급 + 생산량 동시 재계산
       for (const [rarity, [min, max]] of Object.entries(RARITY_RANGES)) {
@@ -871,7 +980,7 @@ export async function createAuction(
     const [result] = await conn.query(
       `INSERT INTO card_auctions (seller_login, item_id, item_name, item_rarity, item_image, individual_value, price)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [key, item.itemId, item.itemName, item.itemRarity, item.itemImage, item.individualValue, price]
+      [key, item.itemId, item.itemName, item.itemRarity, normalizeStoredImagePath(item.itemImage), item.individualValue, price]
     ) as any[];
     await conn.commit();
     return { auctionId: (result as any).insertId };
@@ -997,7 +1106,7 @@ export async function saveUser(user: UserState): Promise<void> {
            (user_id, item_id, item_name, item_rarity, item_image, item_probability, count, first_acquired_at, individual_value)
          VALUES ?`,
         [user.collectedItems.map(i => [
-          userId, i.id, i.name, i.rarity, i.image, i.probability, i.count,
+          userId, i.id, i.name, i.rarity, normalizeStoredImagePath(i.image), i.probability, i.count,
           new Date(i.firstAcquiredAt),
           i.individualValue ?? 1.00,
         ])]
@@ -1061,7 +1170,7 @@ export async function saveSynthesisRecipe(recipe: SynthesisRecipe): Promise<void
          result_item_image = VALUES(result_item_image),
          ingredients = VALUES(ingredients)`,
       [recipe.id, recipe.name, recipe.resultItemId, recipe.resultItemName,
-       recipe.resultItemRarity, recipe.resultItemImage, JSON.stringify(recipe.ingredients)]
+       recipe.resultItemRarity, normalizeStoredImagePath(recipe.resultItemImage), JSON.stringify(recipe.ingredients)]
     );
   } finally { conn.release(); }
 }
@@ -1163,7 +1272,7 @@ export async function addCardToGachaPool(card: {
       `INSERT INTO gacha_items (id, name, rarity, probability, image) VALUES (?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE name=VALUES(name), rarity=VALUES(rarity),
          probability=VALUES(probability), image=VALUES(image)`,
-      [card.id, card.name, card.rarity, card.probability, card.image]
+      [card.id, card.name, card.rarity, card.probability, normalizeStoredImagePath(card.image)]
     );
   } finally { conn.release(); }
 }
