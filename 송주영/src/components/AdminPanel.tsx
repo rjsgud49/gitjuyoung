@@ -840,7 +840,7 @@ export const AdminPanel = ({
                             </div>
                           </div>
                           <div className={styles.itemCardActions}>
-                            <button className={styles.dangerBtn} onClick={() => handleDeleteItem(item.id)} title="삭제">🗑</button>
+                            <button className={`${styles.dangerBtn} ${styles.iconDangerBtn}`} onClick={() => handleDeleteItem(item.id)} title="삭제">🗑</button>
                           </div>
                         </div>
                       ))}
@@ -1162,12 +1162,14 @@ export const AdminPanel = ({
         {tab === 'synthesis' && (
           <div className={styles.card}>
             <div className={styles.cardTitle}><span>⚗️</span> 합성 레시피 관리</div>
-            <button className={styles.fetchBtn} onClick={() => { setRecipesLoaded(false); loadRecipes(); }} style={{ marginBottom: 12 }}>
-              🔄 새로고침
-            </button>
-            <button className={styles.formSubmitBtn} onClick={() => setEditRecipe(newRecipe())} style={{ marginBottom: 16 }}>
-              ➕ 새 레시피 추가
-            </button>
+            <div className={styles.synthesisTopActions}>
+              <button className={styles.fetchBtn} onClick={() => { setRecipesLoaded(false); loadRecipes(); }}>
+                🔄 새로고침
+              </button>
+              <button className={styles.formSubmitBtn} onClick={() => setEditRecipe(newRecipe())}>
+                ➕ 새 레시피 추가
+              </button>
+            </div>
 
             {recipes.length === 0 && <div className={styles.emptyMsg}>등록된 레시피 없음</div>}
             {recipes.map(r => (
@@ -1187,7 +1189,7 @@ export const AdminPanel = ({
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
                     재료: {r.ingredients.map(i => `${i.itemName} ×${i.count}`).join(', ')}
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div className={styles.synthesisRecipeActions}>
                     <button type="button" className={styles.fetchBtn} onClick={() => setEditRecipe({ ...r })}>✏️ 편집</button>
                     <button type="button" className={styles.dangerBtn} onClick={() => handleDeleteRecipe(r.id)}>🗑 삭제</button>
                   </div>
@@ -1368,7 +1370,7 @@ export const AdminPanel = ({
                       />
                       <button
                         type="button"
-                        className={styles.dangerBtn}
+                        className={`${styles.dangerBtn} ${styles.iconDangerBtn}`}
                         onClick={() => {
                           setIngredientPickerIndex(null);
                           setEditRecipe(p => p && ({ ...p, ingredients: p.ingredients.filter((_, i) => i !== idx) }));
