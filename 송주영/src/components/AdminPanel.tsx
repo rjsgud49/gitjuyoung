@@ -39,7 +39,7 @@ function timeAgo(iso: string) {
 
 const RARITY_ORDER: GachaItem['rarity'][] = ['legendary', 'epic', 'rare', 'common'];
 const RARITY_EMOJI: Record<GachaItem['rarity'], string> = {
-  legendary: '⭐', epic: '💜', rare: '💙', common: '⬜',
+  legendary: '⭐', epic: '💜', rare: '💙', common: '⬜', special: '✨',
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ export const AdminPanel = ({
     error?: string;
   }>>([]);
   const [rarityWeights, setRarityWeights] = useState<Record<GachaItem['rarity'], number>>({
-    legendary: 1, epic: 3, rare: 8, common: 15,
+    legendary: 1, epic: 3, rare: 8, common: 15, special: 0,
   });
   const [isDragActive, setIsDragActive] = useState(false);
   const [ghUser,      setGhUser]      = useState(() => localStorage.getItem(GITHUB_ADMIN_KEY) ?? '');

@@ -122,7 +122,7 @@ export async function deleteAdminUser(token: string, login: string): Promise<voi
 export interface FarmPlacedItem {
   itemId: string;
   itemName: string;
-  itemRarity: 'common' | 'rare' | 'epic' | 'legendary';
+  itemRarity: 'common' | 'rare' | 'epic' | 'legendary' | 'special';
   itemImage: string;
   individualValue: number;
   placedAt: string;

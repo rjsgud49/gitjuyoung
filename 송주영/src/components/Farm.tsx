@@ -24,10 +24,10 @@ const SPEED_BASE = 45;
 
 const RARITY_ORDER: GachaItem['rarity'][] = ['legendary', 'epic', 'rare', 'common'];
 const RARITY_LABEL: Record<GachaItem['rarity'], string> = {
-  legendary: '전설', epic: '에픽', rare: '레어', common: '일반',
+  legendary: '전설', epic: '에픽', rare: '레어', common: '일반', special: '스페셜',
 };
 const DISMANTLE_RATE: Record<string, number> = {
-  common: 3, rare: 8, epic: 20, legendary: 50,
+  common: 3, rare: 8, epic: 20, legendary: 50, special: 100,
 };
 
 // 200+ 말풍선 문구

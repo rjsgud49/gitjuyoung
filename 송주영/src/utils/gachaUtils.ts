@@ -39,6 +39,7 @@ let _productionRanges: Record<GachaItem['rarity'], [number, number]> = {
   rare:      [3.0,  7.0],
   epic:      [7.0,  15.0],
   legendary: [15.0, 30.0],
+  special:   [30.0, 50.0],
 };
 
 export function setFarmProductionRanges(cfg: {
@@ -52,6 +53,7 @@ export function setFarmProductionRanges(cfg: {
     rare:      [cfg.rareMin,      cfg.rareMax],
     epic:      [cfg.epicMin,      cfg.epicMax],
     legendary: [cfg.legendaryMin, cfg.legendaryMax],
+    special:   [30.0, 50.0],
   };
 }
 
