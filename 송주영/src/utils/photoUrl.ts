@@ -60,9 +60,14 @@ export function handlePhotoImgErrorThenHide(e: SyntheticEvent<HTMLImageElement>,
 export function photoUrlForDisplay(src: string): string {
   if (!src) return src;
   if (src.startsWith('data:') || /^https?:\/\//i.test(src)) return src;
+  // legacy 경로 호환: 과거 데이터가 /uploads/... 로 저장된 경우 /사진/...로 정규화
+  let normalized = src;
+  if (normalized.startsWith('/uploads/사진/')) normalized = normalized.replace('/uploads/사진/', '/사진/');
+  else if (normalized.startsWith('/uploads/')) normalized = normalized.replace('/uploads/', '/사진/');
+
   const prefix = '/사진/';
-  if (!src.startsWith(prefix)) return src;
-  const rest = src.slice(prefix.length);
+  if (!normalized.startsWith(prefix)) return normalized;
+  const rest = normalized.slice(prefix.length);
   const segments = rest.split('/').filter(Boolean);
   const encoded = segments.map(seg => {
     try {

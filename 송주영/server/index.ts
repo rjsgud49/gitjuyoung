@@ -79,19 +79,23 @@ const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '8mb' }));
 // Uploaded images served BEFORE dist (so they override build output)
-app.use(
-  '/사진',
-  express.static(uploadsDir, {
-    setHeaders(res) {
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-    },
-  }),
-);
-// 파일 없을 때 SPA 폴백(index.html)으로 가면 "이미지 URL인데 가차 화면"처럼 보임 → 명시 404
-app.use('/사진', (req, res) => {
-  console.warn(`[/사진] 404 ${req.method} ${req.originalUrl} (dir=${uploadsDir})`);
-  res.status(404).type('text/plain; charset=utf-8').send('이미지 파일이 서버에 없습니다. uploads/사진 경로와 배포를 확인하세요.');
-});
+// 일부 환경에서 라우트 매칭 시 퍼센트 인코딩 경로(/%EC%82%AC%EC%A7%84/...)가 그대로 들어오므로 둘 다 처리
+const photoRoutePaths = ['/사진', '/%EC%82%AC%EC%A7%84'] as const;
+for (const photoRoutePath of photoRoutePaths) {
+  app.use(
+    photoRoutePath,
+    express.static(uploadsDir, {
+      setHeaders(res) {
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+      },
+    }),
+  );
+  // 파일 없을 때 SPA 폴백(index.html)으로 가면 "이미지 URL인데 가차 화면"처럼 보임 → 명시 404
+  app.use(photoRoutePath, (req, res) => {
+    console.warn(`[${photoRoutePath}] 404 ${req.method} ${req.originalUrl} (dir=${uploadsDir})`);
+    res.status(404).type('text/plain; charset=utf-8').send('이미지 파일이 서버에 없습니다. uploads/사진 경로와 배포를 확인하세요.');
+  });
+}
 
 function ghToken(req: express.Request): string | undefined {
   const h = req.headers.authorization;

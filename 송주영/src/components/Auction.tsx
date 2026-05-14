@@ -5,6 +5,7 @@ import {
 } from '../api/gameApi';
 import type { AuctionEntry } from '../api/gameApi';
 import { getRarityColor } from '../utils/gachaUtils';
+import { photoUrlForDisplay, handlePhotoImgErrorThenHide } from '../utils/photoUrl';
 import styles from '../styles/Auction.module.css';
 
 interface Props {
@@ -275,10 +276,10 @@ export function Auction({
                       <div className={styles.cardRarityBar} style={{ background: `linear-gradient(90deg, ${color}, ${color}88)` }} />
                       <div className={styles.cardImgWrap} style={{ '--spin-dur': `${spinDuration}s` } as React.CSSProperties}>
                         <img
-                          src={a.itemImage}
+                          src={photoUrlForDisplay(a.itemImage)}
                           alt={a.itemName}
                           className={styles.cardImgSpin}
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }}
+                          onError={(e) => { handlePhotoImgErrorThenHide(e, a.itemImage); }}
                         />
                       </div>
                       <div className={styles.cardInfo}>
@@ -332,8 +333,8 @@ export function Auction({
                     <div key={a.id} className={styles.mineCard} style={{ borderColor: color + '44' }}>
                       <div className={styles.mineLeft}>
                         <div className={styles.mineImgWrap}>
-                          <img src={a.itemImage} alt={a.itemName} className={styles.mineImg}
-                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
+                          <img src={photoUrlForDisplay(a.itemImage)} alt={a.itemName} className={styles.mineImg}
+                            onError={(e) => { handlePhotoImgErrorThenHide(e, a.itemImage); }} />
                           <div className={styles.mineRarityDot} style={{ background: color }} />
                         </div>
                         <div>
@@ -399,8 +400,8 @@ export function Auction({
                             style={selected ? { borderColor: color, boxShadow: `0 0 10px ${color}66` } : { borderColor: color + '44' }}
                             onClick={() => setSellItemId(item.id)}
                           >
-                            <img src={item.image} alt={item.name} className={styles.chipImg}
-                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
+                            <img src={photoUrlForDisplay(item.image)} alt={item.name} className={styles.chipImg}
+                              onError={(e) => { handlePhotoImgErrorThenHide(e, item.image); }} />
                             <div className={styles.chipName}>{item.name}</div>
                             <div className={styles.chipCount} style={{ color }}>×{item.count}</div>
                           </button>
@@ -421,8 +422,8 @@ export function Auction({
               const color = getRarityColor(item.rarity);
               return (
                 <div className={styles.previewBar} style={{ borderColor: color + '55' }}>
-                  <img src={item.image} alt={item.name} className={styles.previewImg}
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
+                  <img src={photoUrlForDisplay(item.image)} alt={item.name} className={styles.previewImg}
+                    onError={(e) => { handlePhotoImgErrorThenHide(e, item.image); }} />
                   <div>
                     <div className={styles.previewName}>{item.name}</div>
                     <div style={{ color, fontSize: 11 }}>{RARITY_LABEL[item.rarity]} · 생산량 {item.individualValue}</div>
