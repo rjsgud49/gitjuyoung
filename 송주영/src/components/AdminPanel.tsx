@@ -8,9 +8,12 @@ import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, p
 import type { SynthesisRecipeApi } from '../api/gameApi';
 import type { UserSummary, FarmConfig } from '../api/gameApi';
 import styles from '../styles/AdminPanel.module.css';
-import { photoUrlForDisplay } from '../utils/photoUrl';
+import { photoUrlForDisplay, handlePhotoImgError } from '../utils/photoUrl';
 
 // ─── Lang colors ──────────────────────────────────────────────────────────────
+
+const ADMIN_POOL_IMG_FAIL =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="60" height="60"%3E%3Crect fill="%23333" width="60" height="60"/%3E%3C/svg%3E';
 
 const LANG_COLORS: Record<string, string> = {
   TypeScript: '#3178c6', JavaScript: '#f1e05a', Python: '#3572A5',
@@ -805,7 +808,7 @@ export const AdminPanel = ({
                       {items.map(item => (
                         <div key={item.id} className={styles.itemCard} style={{ borderColor: getRarityColor(item.rarity) + '44' }}>
                           <img src={photoUrlForDisplay(item.image)} alt={item.name} className={styles.itemCardImg}
-                            onError={e => { (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="60" height="60"%3E%3Crect fill="%23333" width="60" height="60"/%3E%3C/svg%3E'; }}
+                            onError={e => handlePhotoImgError(e, item.image, ADMIN_POOL_IMG_FAIL)}
                           />
                           <div className={styles.itemCardInfo}>
                             <div className={styles.itemCardName} title={item.name}>{item.name}</div>

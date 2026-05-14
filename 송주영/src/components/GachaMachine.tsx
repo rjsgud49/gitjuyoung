@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import type { GachaItem, GachaResult, CollectedItem } from '../types';
 import { simulateGacha, getRarityColor, getRarityLabel } from '../utils/gachaUtils';
-import { photoUrlForDisplay } from '../utils/photoUrl';
+import { photoUrlForDisplay, handlePhotoImgError } from '../utils/photoUrl';
 import styles from '../styles/GachaMachine.module.css';
+
+const GACHA_NO_IMG_100 =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ccc" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999"%3ENo Image%3C/text%3E%3C/svg%3E';
+const GACHA_NO_IMG_200 =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ccc" width="200" height="200"/%3E%3Ctext x="100" y="100" text-anchor="middle" dy=".3em" fill="%23999"%3ENo Image%3C/text%3E%3C/svg%3E';
 
 interface GachaMachineProps {
   items: GachaItem[];
@@ -88,10 +93,7 @@ export const GachaMachine: React.FC<GachaMachineProps> = ({
                     src={photoUrlForDisplay(item.image)}
                     alt={item.name}
                     className={styles.itemImage}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ccc" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999"%3ENo Image%3C/text%3E%3C/svg%3E';
-                    }}
+                    onError={e => handlePhotoImgError(e, item.image, GACHA_NO_IMG_100)}
                   />
                 </div>
               ))}
@@ -140,10 +142,7 @@ export const GachaMachine: React.FC<GachaMachineProps> = ({
                 <img
                   src={photoUrlForDisplay(resultItem.item.image)}
                   alt={resultItem.item.name}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ccc" width="200" height="200"/%3E%3Ctext x="100" y="100" text-anchor="middle" dy=".3em" fill="%23999"%3ENo Image%3C/text%3E%3C/svg%3E';
-                  }}
+                  onError={e => handlePhotoImgError(e, resultItem.item.image, GACHA_NO_IMG_200)}
                 />
               </div>
 

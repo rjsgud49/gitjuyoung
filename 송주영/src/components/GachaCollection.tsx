@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { GachaItem, CollectedItem, Rarity } from '../types';
 import { getRarityColor, getRarityLabel } from '../utils/gachaUtils';
-import { photoUrlForDisplay } from '../utils/photoUrl';
+import { photoUrlForDisplay, handlePhotoImgError } from '../utils/photoUrl';
 import styles from '../styles/GachaCollection.module.css';
 
 type FilterType = 'all' | 'legendary' | 'epic' | 'rare' | 'common' | 'special' | 'collected' | 'uncollected';
@@ -12,6 +12,10 @@ interface GachaCollectionProps {
 }
 
 const RARITY_ORDER: Record<string, number> = { legendary: 0, epic: 1, rare: 2, common: 3, special: 4 };
+
+/** 이미지 로드 실패 확정 시(재시도 후) — 갈색 사각형은 여기서만 씁니다 */
+const CODEX_IMG_FAIL =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23221500" width="120" height="120"/%3E%3C/svg%3E';
 
 const FILTER_LABELS: Record<FilterType, string> = {
   all: '전체',
@@ -140,13 +144,11 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
                   {isSpecial && <div className={styles.specialGlow} />}
                   <div className={styles.cardImageWrap}>
                     <img
+                      key={owned.image}
                       src={photoUrlForDisplay(owned.image)}
                       alt={owned.name}
                       className={styles.cardImage}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23221500" width="120" height="120"/%3E%3C/svg%3E';
-                      }}
+                      onError={e => handlePhotoImgError(e, owned.image, CODEX_IMG_FAIL)}
                     />
                   </div>
                   <div className={styles.cardBody}>

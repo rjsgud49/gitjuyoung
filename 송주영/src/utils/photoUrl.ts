@@ -1,3 +1,4 @@
+import type { SyntheticEvent } from 'react';
 import { getApiBaseUrl } from '../config/apiBase';
 
 /**
@@ -6,6 +7,50 @@ import { getApiBaseUrl } from '../config/apiBase';
  * 필요 시 `.env`에 `VITE_PHOTO_CACHE_BUST=3` 처럼 올리면 됩니다.
  */
 const PHOTO_CACHE_BUST = String(import.meta.env.VITE_PHOTO_CACHE_BUST ?? '2').trim() || '2';
+
+/** 첫 로드가 실패(캐시된 HTML 등)했을 때 한 번 더 다른 URL로 시도 */
+export function withImgRetryQuery(url: string): string {
+  if (!url || url.startsWith('data:')) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}_retry=${Date.now()}`;
+}
+
+/**
+ * `<img onError>`: 같은 논리 경로로 재요청(캐시 회피) 한 뒤에도 실패하면 placeholder로 교체.
+ * `data:image/svg+xml,...` 같은 플레이스홀더는 그대로 두면 됩니다.
+ */
+export function handlePhotoImgError(
+  e: SyntheticEvent<HTMLImageElement>,
+  logicalSrc: string,
+  placeholderDataUrl: string,
+): void {
+  const el = e.currentTarget;
+  if (!logicalSrc || logicalSrc.startsWith('data:')) {
+    el.src = placeholderDataUrl;
+    return;
+  }
+  if (el.dataset.photoRetry === '1') {
+    el.src = placeholderDataUrl;
+    return;
+  }
+  el.dataset.photoRetry = '1';
+  el.src = withImgRetryQuery(photoUrlForDisplay(logicalSrc));
+}
+
+/** 재시도 후에는 요소를 숨깁니다(작은 재료 썸네일 등). */
+export function handlePhotoImgErrorThenHide(e: SyntheticEvent<HTMLImageElement>, logicalSrc: string): void {
+  const el = e.currentTarget;
+  if (!logicalSrc || logicalSrc.startsWith('data:')) {
+    el.style.display = 'none';
+    return;
+  }
+  if (el.dataset.photoRetry === '1') {
+    el.style.display = 'none';
+    return;
+  }
+  el.dataset.photoRetry = '1';
+  el.src = withImgRetryQuery(photoUrlForDisplay(logicalSrc));
+}
 
 /**
  * `/사진/...` 경로를 img src에 안전하게 쓰기 위해

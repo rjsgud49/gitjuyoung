@@ -3,7 +3,13 @@ import type { CSSProperties } from 'react';
 import type { GachaItem, GachaResult, CollectedItem } from '../types';
 import type { GachaEvent } from '../types/admin';
 import { simulateGacha, getRarityColor, getRarityLabel } from '../utils/gachaUtils';
+import { photoUrlForDisplay, handlePhotoImgError } from '../utils/photoUrl';
 import styles from '../styles/CapsuleMachine.module.css';
+
+const CAPSULE_IMG_FAIL_80 =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23333" width="80" height="80"/%3E%3C/svg%3E';
+const CAPSULE_IMG_FAIL_200 =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23333" width="200" height="200"/%3E%3C/svg%3E';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -660,11 +666,8 @@ export const CapsuleMachine = ({
                         <div className={styles.multiCardRarityLabel}>{getRarityLabelFull(r.item.rarity)}</div>
                         {r.isNew && <div className={styles.newBadge}>NEW!</div>}
                         <div className={styles.multiCardImageFrame}>
-                          <img src={r.item.image} alt={r.item.name} className={styles.cardImage}
-                            onError={e => {
-                              (e.currentTarget as HTMLImageElement).src =
-                                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23333" width="80" height="80"/%3E%3C/svg%3E';
-                            }}
+                          <img src={photoUrlForDisplay(r.item.image)} alt={r.item.name} className={styles.cardImage}
+                            onError={e => handlePhotoImgError(e, r.item.image, CAPSULE_IMG_FAIL_80)}
                           />
                         </div>
                         <div className={styles.multiCardName}>{r.item.name}</div>
@@ -722,13 +725,10 @@ export const CapsuleMachine = ({
                   {result.isNew && <div className={styles.newBadge}>NEW!</div>}
                   <div className={styles.cardImageFrame}>
                     <img
-                      src={result.item.image}
+                      src={photoUrlForDisplay(result.item.image)}
                       alt={result.item.name}
                       className={styles.cardImage}
-                      onError={e => {
-                        (e.currentTarget as HTMLImageElement).src =
-                          'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23333" width="200" height="200"/%3E%3C/svg%3E';
-                      }}
+                      onError={e => handlePhotoImgError(e, result.item.image, CAPSULE_IMG_FAIL_200)}
                     />
                   </div>
                   <div className={styles.cardName}>{result.item.name}</div>

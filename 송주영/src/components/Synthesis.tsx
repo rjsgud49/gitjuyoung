@@ -4,7 +4,12 @@ import { getRarityColor, getRarityLabel } from '../utils/gachaUtils';
 import { fetchSynthesisRecipes, postCraftSynthesis } from '../api/gameApi';
 import type { SynthesisRecipeApi } from '../api/gameApi';
 import styles from '../styles/Synthesis.module.css';
-import { photoUrlForDisplay } from '../utils/photoUrl';
+import { photoUrlForDisplay, handlePhotoImgError, handlePhotoImgErrorThenHide } from '../utils/photoUrl';
+
+const SYNTH_IMG_80 =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23333" width="80" height="80"/%3E%3C/svg%3E';
+const SYNTH_IMG_120 =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23333" width="120" height="120"/%3E%3C/svg%3E';
 
 interface Props {
   githubToken?: string;
@@ -106,8 +111,7 @@ export const Synthesis = ({ githubToken, collectedItems, onCollectedItemsChange 
                       src={photoUrlForDisplay(recipe.resultItemImage)}
                       alt={recipe.resultItemName}
                       className={styles.resultImg}
-                      onError={e => { (e.currentTarget as HTMLImageElement).src =
-                        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23333" width="80" height="80"/%3E%3C/svg%3E'; }}
+                      onError={e => handlePhotoImgError(e, recipe.resultItemImage, SYNTH_IMG_80)}
                     />
                     <div className={styles.resultName}>{recipe.resultItemName}</div>
                     <div
@@ -133,7 +137,7 @@ export const Synthesis = ({ githubToken, collectedItems, onCollectedItemsChange 
                         <div key={i} className={`${styles.ingredient} ${enough ? styles.ingHave : styles.ingMissing}`}>
                           {held?.image && (
                             <img src={photoUrlForDisplay(held.image)} alt={ing.itemName} className={styles.ingImg}
-                              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                              onError={e => handlePhotoImgErrorThenHide(e, held.image)} />
                           )}
                           <div className={styles.ingInfo}>
                             <div className={styles.ingName}>{ing.itemName}</div>
@@ -174,8 +178,7 @@ export const Synthesis = ({ githubToken, collectedItems, onCollectedItemsChange 
             >
               <div className={styles.resultModalGlow} />
               <img src={photoUrlForDisplay(result.image)} alt={result.name} className={styles.resultModalImg}
-                onError={e => { (e.currentTarget as HTMLImageElement).src =
-                  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120"%3E%3Crect fill="%23333" width="120" height="120"/%3E%3C/svg%3E'; }}
+                onError={e => handlePhotoImgError(e, result.image, SYNTH_IMG_120)}
               />
               <div className={styles.resultModalName}>{result.name}</div>
               <div className={styles.resultModalRarity} style={{ color: getRarityColor(result.rarity) }}>
