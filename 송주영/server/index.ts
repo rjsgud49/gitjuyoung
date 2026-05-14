@@ -2,7 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { mkdirSync } from 'fs';
 import { verifyGithubToken, isAdminLogin } from './auth';
 import {
@@ -52,8 +53,10 @@ const MAX_ACTIVITY = 60;
 
 const PORT = parseInt(process.env.PORT ?? '8787', 10);
 
-// ─── Uploads directory (프로젝트 루트 기준 — tsx/빌드 산출물 위치와 무관하게 동일 경로) ─
-const uploadsDir = join(process.cwd(), 'uploads', '사진');
+// ─── 프로젝트 루트 (Node 시작 cwd와 무관 — 서비스/NSSM이 System32에서 떠도 동일 경로) ─
+const serverDir = dirname(fileURLToPath(import.meta.url));
+const projectRoot = join(serverDir, '..');
+const uploadsDir = join(projectRoot, 'uploads', '사진');
 mkdirSync(uploadsDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -77,6 +80,11 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '8mb' }));
 // Uploaded images served BEFORE dist (so they override build output)
 app.use('/사진', express.static(uploadsDir));
+// 파일 없을 때 SPA 폴백(index.html)으로 가면 "이미지 URL인데 가차 화면"처럼 보임 → 명시 404
+app.use('/사진', (req, res) => {
+  console.warn(`[/사진] 404 ${req.method} ${req.originalUrl} (dir=${uploadsDir})`);
+  res.status(404).type('text/plain; charset=utf-8').send('이미지 파일이 서버에 없습니다. uploads/사진 경로와 배포를 확인하세요.');
+});
 
 function ghToken(req: express.Request): string | undefined {
   const h = req.headers.authorization;
@@ -544,8 +552,8 @@ app.post('/api/auction/:id/buy', async (req, res) => {
   catch (e) { res.status(400).json({ error: e instanceof Error ? e.message : 'error' }); }
 });
 
-// 프로덕션: 빌드된 프론트 정적 파일 서빙 (프로젝트 루트 기준)
-const distPath = join(process.cwd(), 'dist');
+// 프로덕션: 빌드된 프론트 정적 파일 서빙 (프로젝트 루트 기준, cwd와 무관)
+const distPath = join(projectRoot, 'dist');
 app.use(express.static(distPath));
 app.get('*', (_req, res) => {
   res.sendFile(join(distPath, 'index.html'));
@@ -553,6 +561,7 @@ app.get('*', (_req, res) => {
 
 app.listen(PORT, () => {
   console.log(`[server] http://0.0.0.0:${PORT}  (GET /api/health)`);
+  console.log(`[server] projectRoot → ${projectRoot} (cwd=${process.cwd()})`);
   console.log(`[server] uploads/사진 → ${uploadsDir}`);
   initDb().catch(err => console.error('[db] initDb failed:', err));
 });
