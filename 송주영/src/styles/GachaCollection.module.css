@@ -342,3 +342,19 @@
 
   .statsRow { gap: 6px; }
 }
+
+/* ── Special card ── */
+.cardSpecial {
+  border-color: rgba(255, 79, 216, 0.5) !important;
+  background: linear-gradient(145deg, rgba(40,5,50,0.9), rgba(20,0,30,0.95)) !important;
+}
+
+.specialGlow {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,79,216,0.18), transparent 65%);
+  animation: specialPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes specialPulse {
+  0%, 100% { opacity: 0.6; } 50% { opacity: 1; }
+}

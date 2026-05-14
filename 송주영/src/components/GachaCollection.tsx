@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react';
-import type { GachaItem, CollectedItem } from '../types';
+import type { GachaItem, CollectedItem, Rarity } from '../types';
 import { getRarityColor, getRarityLabel } from '../utils/gachaUtils';
 import styles from '../styles/GachaCollection.module.css';
 
-type FilterType = 'all' | 'legendary' | 'epic' | 'rare' | 'common' | 'collected' | 'uncollected';
+type FilterType = 'all' | 'legendary' | 'epic' | 'rare' | 'common' | 'special' | 'collected' | 'uncollected';
 
 interface GachaCollectionProps {
   collectedItems: Map<string, CollectedItem>;
   gachaItems: GachaItem[];
 }
 
-const RARITY_ORDER = { legendary: 0, epic: 1, rare: 2, common: 3 };
+const RARITY_ORDER: Record<string, number> = { legendary: 0, epic: 1, rare: 2, common: 3, special: 4 };
 
 const FILTER_LABELS: Record<FilterType, string> = {
   all: '전체',
@@ -18,6 +18,7 @@ const FILTER_LABELS: Record<FilterType, string> = {
   epic: '에픽',
   rare: '레어',
   common: '일반',
+  special: '✨스페셜',
   collected: '수집됨',
   uncollected: '미수집',
 };
@@ -28,31 +29,45 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
 }) => {
   const [filter, setFilter] = useState<FilterType>('all');
 
-  const sortedAll = useMemo(() => {
-    return [...gachaItems].sort((a, b) =>
-      RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.name.localeCompare(b.name, 'ko')
+  // 스페셜 카드 (gacha pool에 없는 수집 카드 — 합성 결과)
+  const specialItems = useMemo(() => {
+    const gachaIds = new Set(gachaItems.map(i => i.id));
+    const result: GachaItem[] = [];
+    collectedItems.forEach((it, id) => {
+      if (!gachaIds.has(id)) {
+        result.push({ id: it.id, name: it.name, rarity: it.rarity, image: it.image, probability: 0 });
+      }
+    });
+    return result;
+  }, [collectedItems, gachaItems]);
+
+  const allItems = useMemo(() => {
+    return [...gachaItems, ...specialItems].sort((a, b) =>
+      (RARITY_ORDER[a.rarity] ?? 5) - (RARITY_ORDER[b.rarity] ?? 5) ||
+      a.name.localeCompare(b.name, 'ko')
     );
-  }, [gachaItems]);
+  }, [gachaItems, specialItems]);
 
   const filtered = useMemo(() => {
-    return sortedAll.filter(item => {
+    return allItems.filter(item => {
       const has = collectedItems.has(item.id);
       if (filter === 'collected')   return has;
       if (filter === 'uncollected') return !has;
       if (filter === 'all')         return true;
       return item.rarity === filter;
     });
-  }, [sortedAll, collectedItems, filter]);
+  }, [allItems, collectedItems, filter]);
 
   const stats = useMemo(() => {
-    const s = { legendary: 0, epic: 0, rare: 0, common: 0 };
-    collectedItems.forEach(it => { s[it.rarity]++; });
+    const s: Record<string, number> = { legendary: 0, epic: 0, rare: 0, common: 0, special: 0 };
+    collectedItems.forEach(it => { s[it.rarity] = (s[it.rarity] ?? 0) + 1; });
     return s;
   }, [collectedItems]);
 
-  const total = gachaItems.length;
+  const total = allItems.length;
   const collected = collectedItems.size;
   const pct = total > 0 ? (collected / total) * 100 : 0;
+  const hasSpecial = specialItems.length > 0;
 
   return (
     <div className={styles.bookPage}>
@@ -63,7 +78,6 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
         <div className={styles.bookSubtitle}>Codex Juyoung</div>
         <div className={styles.bookOrnamentBot}>✦ ── ✦ ── ✦</div>
 
-        {/* Completion scroll */}
         <div className={styles.scrollContainer}>
           <div className={styles.scrollTrack}>
             <div className={styles.scrollFill} style={{ width: `${pct}%` }} />
@@ -73,34 +87,44 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
           </div>
         </div>
 
-        {/* Rarity stats */}
         <div className={styles.statsRow}>
-          {(['legendary', 'epic', 'rare', 'common'] as const).map(r => (
+          {(['legendary', 'epic', 'rare', 'common'] as Rarity[]).map(r => (
             <div key={r} className={styles.statChip} style={{ borderColor: getRarityColor(r) + '66' }}>
               <span className={styles.statDot} style={{ background: getRarityColor(r) }} />
               <span className={styles.statLabel}>{getRarityLabel(r)}</span>
               <span className={styles.statCount} style={{ color: getRarityColor(r) }}>
-                {stats[r]}
+                {stats[r] ?? 0}
               </span>
             </div>
           ))}
+          {stats.special > 0 && (
+            <div className={styles.statChip} style={{ borderColor: getRarityColor('special') + '66' }}>
+              <span className={styles.statDot} style={{ background: getRarityColor('special') }} />
+              <span className={styles.statLabel}>스페셜</span>
+              <span className={styles.statCount} style={{ color: getRarityColor('special') }}>
+                {stats.special}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Filter tabs */}
       <div className={styles.filterRow}>
-        {(Object.keys(FILTER_LABELS) as FilterType[]).map(f => (
-          <button
-            key={f}
-            className={`${styles.filterTab} ${filter === f ? styles.filterTabActive : ''}`}
-            style={filter === f && ['legendary','epic','rare','common'].includes(f)
-              ? { color: getRarityColor(f as GachaItem['rarity']), borderColor: getRarityColor(f as GachaItem['rarity']) + '88' }
-              : {}}
-            onClick={() => setFilter(f)}
-          >
-            {FILTER_LABELS[f]}
-          </button>
-        ))}
+        {(Object.keys(FILTER_LABELS) as FilterType[])
+          .filter(f => f !== 'special' || hasSpecial)
+          .map(f => (
+            <button
+              key={f}
+              className={`${styles.filterTab} ${filter === f ? styles.filterTabActive : ''}`}
+              style={filter === f && ['legendary','epic','rare','common','special'].includes(f)
+                ? { color: getRarityColor(f), borderColor: getRarityColor(f) + '88' }
+                : {}}
+              onClick={() => setFilter(f)}
+            >
+              {FILTER_LABELS[f]}
+            </button>
+          ))}
       </div>
 
       {/* Item grid */}
@@ -115,10 +139,16 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
             const owned = collectedItems.get(item.id);
             const color = getRarityColor(item.rarity);
             if (owned) {
+              const isSpecial = item.rarity === 'special';
               return (
-                <div key={item.id} className={styles.card} style={{ '--rarity-color': color } as React.CSSProperties}>
+                <div
+                  key={item.id}
+                  className={`${styles.card} ${isSpecial ? styles.cardSpecial : ''}`}
+                  style={{ '--rarity-color': color } as React.CSSProperties}
+                >
                   <div className={styles.cardCornerTL} />
                   <div className={styles.cardCornerTR} />
+                  {isSpecial && <div className={styles.specialGlow} />}
                   <div className={styles.cardImageWrap}>
                     <img
                       src={owned.image}
@@ -133,7 +163,7 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
                   <div className={styles.cardBody}>
                     <div className={styles.cardName}>{owned.name}</div>
                     <div className={styles.cardRarityTag} style={{ color, borderColor: color + '55' }}>
-                      {getRarityLabel(owned.rarity)}
+                      {isSpecial && '✨ '}{getRarityLabel(owned.rarity)}
                     </div>
                     <div className={styles.cardStats}>
                       <div className={styles.cardStat}>
@@ -158,7 +188,8 @@ export const GachaCollection: React.FC<GachaCollectionProps> = ({
               );
             }
 
-            // Uncollected
+            // Uncollected (special은 미수집 표시 안 함)
+            if (item.rarity === 'special') return null;
             return (
               <div key={item.id} className={`${styles.card} ${styles.cardUnknown}`} style={{ '--rarity-color': color } as React.CSSProperties}>
                 <div className={styles.cardCornerTL} />

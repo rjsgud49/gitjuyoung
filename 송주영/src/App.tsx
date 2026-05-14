@@ -8,6 +8,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { GitHubModal } from './components/GitHubModal';
 import { Farm } from './components/Farm';
 import { Auction } from './components/Auction';
+import { Synthesis } from './components/Synthesis';
 import { ActivityFeed, AnnouncementsPanel } from './components/GachaSidePanel';
 import { addItemToCollection, setFarmProductionRanges } from './utils/gachaUtils';
 import {
@@ -74,7 +75,7 @@ function mapToCollectedRows(map: Map<string, CollectedItem>): MeApiPayload['coll
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-type View = 'machine' | 'collection' | 'farm' | 'auction' | 'admin';
+type View = 'machine' | 'collection' | 'farm' | 'auction' | 'synthesis' | 'admin';
 
 function App() {
   const [gachaItems,      setGachaItems]      = useState<GachaItem[]>([]);
@@ -329,6 +330,9 @@ function App() {
           <button className={`nav-button ${currentView === 'auction' ? 'active' : ''}`} onClick={() => setCurrentView('auction')}>
             🏪 경매
           </button>
+          <button className={`nav-button ${currentView === 'synthesis' ? 'active' : ''}`} onClick={() => setCurrentView('synthesis')}>
+            ⚗️ 합성
+          </button>
         </div>
 
         <div className="nav-right">
@@ -407,6 +411,13 @@ function App() {
             collectedItems={collectedItems}
             coins={coins}
             onCoinsChange={setCoins}
+            onCollectedItemsChange={setCollectedItems}
+          />
+        )}
+        {currentView === 'synthesis' && (
+          <Synthesis
+            githubToken={githubToken ?? undefined}
+            collectedItems={collectedItems}
             onCollectedItemsChange={setCollectedItems}
           />
         )}

@@ -1,8 +1,10 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { join, dirname } from 'path';
+import multer from 'multer';
+import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
+import { mkdirSync } from 'fs';
 import { verifyGithubToken, isAdminLogin } from './auth';
 import {
   initDb,
@@ -29,6 +31,11 @@ import {
   createAuction,
   cancelAuction,
   buyAuction,
+  getSynthesisRecipes,
+  saveSynthesisRecipe,
+  deleteSynthesisRecipe,
+  performSynthesis,
+  addCardToGachaPool,
   type GlobalState,
   type UserState,
 } from './store';
@@ -47,9 +54,31 @@ const MAX_ACTIVITY = 60;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT ?? '8787', 10);
 
+// ─── Uploads directory (persists across builds) ───────────────────────────────
+const uploadsDir = join(__dirname, '../uploads/사진');
+mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => {
+    const safe = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    cb(null, safe);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /\.(png|jpg|jpeg|gif|webp)$/i.test(file.originalname);
+    cb(null, ok);
+  },
+});
+
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '8mb' }));
+// Uploaded images served BEFORE dist (so they override build output)
+app.use('/사진', express.static(uploadsDir));
 
 function ghToken(req: express.Request): string | undefined {
   const h = req.headers.authorization;
@@ -354,6 +383,68 @@ app.post('/api/activity', async (req, res) => {
 app.get('/api/farm-config', async (_req, res) => {
   try { res.json(await getFarmConfig()); }
   catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+// ─── Synthesis routes ─────────────────────────────────────────────────────────
+
+app.get('/api/synthesis/recipes', async (_req, res) => {
+  try { res.json(await getSynthesisRecipes()); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+app.post('/api/synthesis/craft', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser) { res.status(401).json({ error: 'unauthorized' }); return; }
+  const { recipeId } = req.body as { recipeId?: string };
+  if (!recipeId) { res.status(400).json({ error: 'bad_request' }); return; }
+  try {
+    const result = await performSynthesis(authUser.login, recipeId);
+    res.json(result);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'error';
+    res.status(400).json({ error: msg });
+  }
+});
+
+app.post('/api/admin/synthesis/recipes', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
+  try { await saveSynthesisRecipe(req.body); res.json({ ok: true }); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+app.delete('/api/admin/synthesis/recipes/:id', async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
+  try { await deleteSynthesisRecipe(req.params.id); res.json({ ok: true }); }
+  catch { res.status(500).json({ error: 'db_error' }); }
+});
+
+// ─── Card upload ──────────────────────────────────────────────────────────────
+
+app.post('/api/admin/upload-card', upload.single('image'), async (req, res) => {
+  const token = ghToken(req);
+  const authUser = await verifyGithubToken(token);
+  if (!authUser || !isAdminLogin(authUser.login)) { res.status(403).json({ error: 'forbidden' }); return; }
+  const file = req.file;
+  if (!file) { res.status(400).json({ error: 'no_file' }); return; }
+  const { name, rarity, id, probability } = req.body as {
+    name?: string; rarity?: string; id?: string; probability?: string;
+  };
+  if (!name || !rarity || !id) { res.status(400).json({ error: 'missing_fields' }); return; }
+  const filename = Buffer.from(file.originalname, 'latin1').toString('utf8');
+  const imageUrl = `/사진/${encodeURIComponent(filename)}`;
+  try {
+    await addCardToGachaPool({
+      id, name, rarity,
+      image: imageUrl,
+      probability: parseFloat(probability ?? '15') || 15,
+    });
+    res.json({ ok: true, imageUrl });
+  } catch { res.status(500).json({ error: 'db_error' }); }
 });
 
 // ─── Auction routes ───────────────────────────────────────────────────────────

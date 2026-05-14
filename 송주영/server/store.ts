@@ -114,6 +114,20 @@ export async function initDb(): Promise<void> {
   const conn = await pool.getConnection();
   try {
     await conn.query(`
+      CREATE TABLE IF NOT EXISTS synthesis_recipes (
+        id                   VARCHAR(64)   PRIMARY KEY,
+        name                 VARCHAR(255)  NOT NULL,
+        result_item_id       VARCHAR(255)  NOT NULL,
+        result_item_name     VARCHAR(255)  NOT NULL,
+        result_item_rarity   VARCHAR(50)   NOT NULL DEFAULT 'special',
+        result_item_image    VARCHAR(2048) NOT NULL DEFAULT '',
+        ingredients          JSON          NOT NULL,
+        created_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('[db] synthesis_recipes table OK');
+
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS card_auctions (
         id               INT AUTO_INCREMENT PRIMARY KEY,
         seller_login     VARCHAR(255) NOT NULL,
@@ -939,4 +953,162 @@ export async function saveUser(user: UserState): Promise<void> {
   } finally {
     conn.release();
   }
+}
+
+// ─── Synthesis ────────────────────────────────────────────────────────────────
+
+export interface SynthesisIngredient {
+  itemId: string;
+  itemName: string;
+  count: number;
+}
+
+export interface SynthesisRecipe {
+  id: string;
+  name: string;
+  resultItemId: string;
+  resultItemName: string;
+  resultItemRarity: string;
+  resultItemImage: string;
+  ingredients: SynthesisIngredient[];
+}
+
+export async function getSynthesisRecipes(): Promise<SynthesisRecipe[]> {
+  const conn = await pool.getConnection();
+  try {
+    const [rows] = await conn.query('SELECT * FROM synthesis_recipes ORDER BY created_at ASC') as any[];
+    return (rows as any[]).map(r => ({
+      id: r.id,
+      name: r.name,
+      resultItemId: r.result_item_id,
+      resultItemName: r.result_item_name,
+      resultItemRarity: r.result_item_rarity,
+      resultItemImage: r.result_item_image,
+      ingredients: typeof r.ingredients === 'string' ? JSON.parse(r.ingredients) : r.ingredients,
+    }));
+  } finally { conn.release(); }
+}
+
+export async function saveSynthesisRecipe(recipe: SynthesisRecipe): Promise<void> {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query(
+      `INSERT INTO synthesis_recipes (id, name, result_item_id, result_item_name, result_item_rarity, result_item_image, ingredients)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         name = VALUES(name),
+         result_item_id = VALUES(result_item_id),
+         result_item_name = VALUES(result_item_name),
+         result_item_rarity = VALUES(result_item_rarity),
+         result_item_image = VALUES(result_item_image),
+         ingredients = VALUES(ingredients)`,
+      [recipe.id, recipe.name, recipe.resultItemId, recipe.resultItemName,
+       recipe.resultItemRarity, recipe.resultItemImage, JSON.stringify(recipe.ingredients)]
+    );
+  } finally { conn.release(); }
+}
+
+export async function deleteSynthesisRecipe(id: string): Promise<void> {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('DELETE FROM synthesis_recipes WHERE id = ?', [id]);
+  } finally { conn.release(); }
+}
+
+export async function performSynthesis(
+  login: string,
+  recipeId: string
+): Promise<{ resultItemId: string; resultItemName: string; resultItemRarity: string; resultItemImage: string }> {
+  const key = login.trim().toLowerCase();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [recipeRows] = await conn.query('SELECT * FROM synthesis_recipes WHERE id = ?', [recipeId]) as any[];
+    const recipe = (recipeRows as any[])[0];
+    if (!recipe) throw new Error('recipe_not_found');
+
+    const ingredients: SynthesisIngredient[] = typeof recipe.ingredients === 'string'
+      ? JSON.parse(recipe.ingredients) : recipe.ingredients;
+
+    // 유저 ID 조회
+    const [userRows] = await conn.query('SELECT id FROM users WHERE github_login = ?', [key]) as any[];
+    const userId = (userRows as any[])[0]?.id;
+    if (!userId) throw new Error('user_not_found');
+
+    // 재료 보유 수량 확인
+    for (const ing of ingredients) {
+      const [rows] = await conn.query(
+        'SELECT count FROM user_collected_items WHERE user_id = ? AND item_id = ?',
+        [userId, ing.itemId]
+      ) as any[];
+      const held = (rows as any[])[0]?.count ?? 0;
+      if (held < ing.count) throw new Error(`insufficient:${ing.itemId}`);
+    }
+
+    // 재료 차감 (count 0이 되면 삭제)
+    for (const ing of ingredients) {
+      await conn.query(
+        `UPDATE user_collected_items SET count = count - ? WHERE user_id = ? AND item_id = ?`,
+        [ing.count, userId, ing.itemId]
+      );
+      await conn.query(
+        `DELETE FROM user_collected_items WHERE user_id = ? AND item_id = ? AND count <= 0`,
+        [userId, ing.itemId]
+      );
+    }
+
+    // 결과 카드 지급 (없으면 INSERT, 있으면 count+1)
+    const specialRange = RARITY_RANGES['legendary'] ?? [15.0, 30.0];
+    const specialMin = specialRange[0] * 2;
+    const specialMax = specialRange[1] * 2;
+    const individualValue = parseFloat((specialMin + Math.random() * (specialMax - specialMin)).toFixed(2));
+
+    const [existing] = await conn.query(
+      'SELECT count FROM user_collected_items WHERE user_id = ? AND item_id = ?',
+      [userId, recipe.result_item_id]
+    ) as any[];
+
+    if ((existing as any[])[0]) {
+      await conn.query(
+        'UPDATE user_collected_items SET count = count + 1 WHERE user_id = ? AND item_id = ?',
+        [userId, recipe.result_item_id]
+      );
+    } else {
+      await conn.query(
+        `INSERT INTO user_collected_items
+           (user_id, item_id, item_name, item_rarity, item_image, item_probability, count, first_acquired_at, individual_value)
+         VALUES (?, ?, ?, ?, ?, 0, 1, NOW(), ?)`,
+        [userId, recipe.result_item_id, recipe.result_item_name,
+         recipe.result_item_rarity, recipe.result_item_image, individualValue]
+      );
+    }
+
+    await conn.commit();
+    return {
+      resultItemId: recipe.result_item_id,
+      resultItemName: recipe.result_item_name,
+      resultItemRarity: recipe.result_item_rarity,
+      resultItemImage: recipe.result_item_image,
+    };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally { conn.release(); }
+}
+
+// ─── Card upload (DB only — image saved by route handler) ─────────────────────
+
+export async function addCardToGachaPool(card: {
+  id: string; name: string; rarity: string; image: string; probability: number;
+}): Promise<void> {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query(
+      `INSERT INTO gacha_items (id, name, rarity, probability, image) VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE name=VALUES(name), rarity=VALUES(rarity),
+         probability=VALUES(probability), image=VALUES(image)`,
+      [card.id, card.name, card.rarity, card.probability, card.image]
+    );
+  } finally { conn.release(); }
 }

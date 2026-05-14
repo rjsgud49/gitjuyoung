@@ -4,7 +4,8 @@ import type { GachaEvent, Announcement } from '../types/admin';
 import { getRarityColor, getRarityLabel, setFarmProductionRanges } from '../utils/gachaUtils';
 import { fetchGitHubFullStats } from '../utils/githubUtils';
 import type { GitHubStats } from '../utils/githubUtils';
-import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, putAdminFarmConfig, postAdminRerollValues } from '../api/gameApi';
+import { fetchAdminUsers, putAdminUser, deleteAdminUser, fetchAdminFarmConfig, putAdminFarmConfig, postAdminRerollValues, fetchSynthesisRecipes, postAdminSynthesisRecipe, deleteAdminSynthesisRecipe, postAdminUploadCard } from '../api/gameApi';
+import type { SynthesisRecipeApi } from '../api/gameApi';
 import type { UserSummary, FarmConfig } from '../api/gameApi';
 import styles from '../styles/AdminPanel.module.css';
 
@@ -43,7 +44,7 @@ const RARITY_EMOJI: Record<GachaItem['rarity'], string> = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'dashboard' | 'items' | 'coins' | 'comms' | 'users' | 'farm';
+type Tab = 'dashboard' | 'items' | 'coins' | 'comms' | 'users' | 'farm' | 'synthesis' | 'upload';
 
 interface Props {
   gachaItems:    GachaItem[];
@@ -80,6 +81,16 @@ export const AdminPanel = ({
   // Farm config tab
   const [farmCfg, setFarmCfg] = useState<FarmConfig | null>(null);
   const [farmCfgLoading, setFarmCfgLoading] = useState(false);
+  // Synthesis
+  const [recipes, setRecipes] = useState<SynthesisRecipeApi[]>([]);
+  const [recipesLoaded, setRecipesLoaded] = useState(false);
+  const [editRecipe, setEditRecipe] = useState<SynthesisRecipeApi | null>(null);
+  // Upload
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadName, setUploadName] = useState('');
+  const [uploadRarity, setUploadRarity] = useState<'common'|'rare'|'epic'|'legendary'>('common');
+  const [uploadProb, setUploadProb] = useState('15');
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [rarityWeights, setRarityWeights] = useState<Record<GachaItem['rarity'], number>>({
     legendary: 1, epic: 3, rare: 8, common: 15,
   });
@@ -296,6 +307,79 @@ export const AdminPanel = ({
     }
   };
 
+  // ── Synthesis ────────────────────────────────────────────────────────────────
+
+  const loadRecipes = useCallback(async () => {
+    try {
+      const data = await fetchSynthesisRecipes();
+      setRecipes(data);
+      setRecipesLoaded(true);
+    } catch { showToast('❌ 레시피 로드 실패'); }
+  }, [showToast]);
+
+  useEffect(() => {
+    if (tab === 'synthesis' && !recipesLoaded) loadRecipes();
+  }, [tab, recipesLoaded, loadRecipes]);
+
+  const newRecipe = (): SynthesisRecipeApi => ({
+    id: `recipe_${Date.now()}`,
+    name: '',
+    resultItemId: `sp-${Date.now()}`,
+    resultItemName: '',
+    resultItemRarity: 'special',
+    resultItemImage: '',
+    ingredients: [{ itemId: '', itemName: '', count: 1 }],
+  });
+
+  const handleSaveRecipe = async () => {
+    if (!githubToken || !editRecipe) return;
+    if (!editRecipe.name || !editRecipe.resultItemName || editRecipe.ingredients.some(i => !i.itemId)) {
+      showToast('❌ 모든 필드를 입력하세요'); return;
+    }
+    try {
+      await postAdminSynthesisRecipe(githubToken, editRecipe);
+      showToast('✅ 레시피 저장 완료');
+      setEditRecipe(null);
+      await loadRecipes();
+    } catch (e) { showToast(`❌ 저장 실패: ${e instanceof Error ? e.message : e}`); }
+  };
+
+  const handleDeleteRecipe = async (id: string) => {
+    if (!githubToken || !confirm('레시피를 삭제할까요?')) return;
+    try {
+      await deleteAdminSynthesisRecipe(githubToken, id);
+      showToast('🗑️ 레시피 삭제 완료');
+      setRecipes(prev => prev.filter(r => r.id !== id));
+    } catch (e) { showToast(`❌ 삭제 실패: ${e instanceof Error ? e.message : e}`); }
+  };
+
+  // ── Card upload ───────────────────────────────────────────────────────────────
+
+  const handleUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    setUploadFile(f);
+    if (f) {
+      setUploadPreview(URL.createObjectURL(f));
+      if (!uploadName) setUploadName(f.name.replace(/\.[^.]+$/, ''));
+    }
+  };
+
+  const handleUploadCard = async () => {
+    if (!githubToken || !uploadFile || !uploadName) {
+      showToast('❌ 파일과 이름을 입력하세요'); return;
+    }
+    const autoId = `card_${uploadFile.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9가-힣_-]/g, '_')}_${Date.now()}`;
+    try {
+      await postAdminUploadCard(githubToken, uploadFile, {
+        id: autoId, name: uploadName, rarity: uploadRarity,
+        probability: parseFloat(uploadProb) || 15,
+      });
+      showToast(`✅ "${uploadName}" 카드 업로드 완료`);
+      setUploadFile(null); setUploadPreview(null);
+      setUploadName(''); setUploadProb('15');
+    } catch (e) { showToast(`❌ 업로드 실패: ${e instanceof Error ? e.message : e}`); }
+  };
+
   const handleEditUser = (u: UserSummary) => {
     setEditingUser(u.githubLogin);
     setEditCoins(String(u.coins));
@@ -353,6 +437,8 @@ export const AdminPanel = ({
           ['comms',     '📢', '공지/이벤트'],
           ['users',     '👥', '유저 관리'],
           ['farm',      '🌾', '농장 설정'],
+          ['synthesis', '⚗️', '합성 관리'],
+          ['upload',    '📤', '카드 업로드'],
         ] as [Tab, string, string][]).map(([id, icon, label]) => (
           <button key={id}
             className={`${styles.tabBtn} ${tab === id ? styles.tabBtnActive : ''}`}
@@ -914,6 +1000,180 @@ export const AdminPanel = ({
             ) : (
               <div className={styles.emptyMsg}>{farmCfgLoading ? '불러오는 중…' : '설정을 불러오세요'}</div>
             )}
+          </div>
+        )}
+
+        {/* ── 합성 관리 탭 ──────────────────────────────────────────────────── */}
+        {tab === 'synthesis' && (
+          <div className={styles.card}>
+            <div className={styles.cardTitle}><span>⚗️</span> 합성 레시피 관리</div>
+            <button className={styles.fetchBtn} onClick={() => { setRecipesLoaded(false); loadRecipes(); }} style={{ marginBottom: 12 }}>
+              🔄 새로고침
+            </button>
+            <button className={styles.formSubmitBtn} onClick={() => setEditRecipe(newRecipe())} style={{ marginBottom: 16 }}>
+              ➕ 새 레시피 추가
+            </button>
+
+            {recipes.length === 0 && <div className={styles.emptyMsg}>등록된 레시피 없음</div>}
+            {recipes.map(r => (
+              <div key={r.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>{r.name}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>
+                  결과: {r.resultItemName} ({getRarityLabel(r.resultItemRarity as any)})
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+                  재료: {r.ingredients.map(i => `${i.itemName} ×${i.count}`).join(', ')}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className={styles.fetchBtn} onClick={() => setEditRecipe({ ...r })}>✏️ 편집</button>
+                  <button className={styles.dangerBtn} onClick={() => handleDeleteRecipe(r.id)}>🗑 삭제</button>
+                </div>
+              </div>
+            ))}
+
+            {editRecipe && (
+              <div style={{ marginTop: 20, background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 16, border: '1px solid rgba(255,200,100,0.2)' }}>
+                <div style={{ fontWeight: 800, marginBottom: 12, color: '#e8c870' }}>레시피 편집</div>
+                <div className={styles.formRow}>
+                  <label className={styles.formLabel}>레시피 이름</label>
+                  <input className={styles.formInput} value={editRecipe.name}
+                    onChange={e => setEditRecipe(p => p && ({ ...p, name: e.target.value }))} />
+                </div>
+                <div style={{ marginTop: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>결과 카드</div>
+                <div className={styles.formGrid2}>
+                  <div className={styles.formRow}>
+                    <label className={styles.formLabel}>카드 ID</label>
+                    <input className={styles.formInput} value={editRecipe.resultItemId}
+                      onChange={e => setEditRecipe(p => p && ({ ...p, resultItemId: e.target.value }))} />
+                  </div>
+                  <div className={styles.formRow}>
+                    <label className={styles.formLabel}>카드 이름</label>
+                    <input className={styles.formInput} value={editRecipe.resultItemName}
+                      onChange={e => setEditRecipe(p => p && ({ ...p, resultItemName: e.target.value }))} />
+                  </div>
+                  <div className={styles.formRow}>
+                    <label className={styles.formLabel}>등급</label>
+                    <select className={styles.formInput} value={editRecipe.resultItemRarity}
+                      onChange={e => setEditRecipe(p => p && ({ ...p, resultItemRarity: e.target.value }))}>
+                      <option value="special">✨ 스페셜</option>
+                      <option value="legendary">⭐ 전설</option>
+                      <option value="epic">💜 에픽</option>
+                      <option value="rare">💙 레어</option>
+                      <option value="common">⬜ 일반</option>
+                    </select>
+                  </div>
+                  <div className={styles.formRow}>
+                    <label className={styles.formLabel}>이미지 URL</label>
+                    <input className={styles.formInput} placeholder="/사진/카드이름.png" value={editRecipe.resultItemImage}
+                      onChange={e => setEditRecipe(p => p && ({ ...p, resultItemImage: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>
+                  재료 ({editRecipe.ingredients.length}개)
+                  <button className={styles.fetchBtn} style={{ marginLeft: 8 }}
+                    onClick={() => setEditRecipe(p => p && ({ ...p, ingredients: [...p.ingredients, { itemId: '', itemName: '', count: 1 }] }))}>
+                    ➕ 재료 추가
+                  </button>
+                </div>
+                {editRecipe.ingredients.map((ing, idx) => {
+                  const selCard = gachaItems.find(c => c.id === ing.itemId);
+                  return (
+                    <div key={idx} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                      {selCard ? (
+                        <img src={selCard.image} alt={selCard.name}
+                          style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.15)' }} />
+                      ) : (
+                        <div style={{ width: 36, height: 36, borderRadius: 6, background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
+                      )}
+                      <select className={styles.formInput} value={ing.itemId} style={{ flex: 1 }}
+                        onChange={e => {
+                          const card = gachaItems.find(c => c.id === e.target.value);
+                          setEditRecipe(p => {
+                            if (!p) return p;
+                            const arr = [...p.ingredients];
+                            arr[idx] = { ...arr[idx], itemId: e.target.value, itemName: card?.name ?? '' };
+                            return { ...p, ingredients: arr };
+                          });
+                        }}>
+                        <option value="">카드 선택…</option>
+                        {gachaItems.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {(RARITY_EMOJI as Record<string,string>)[c.rarity] ?? '•'} {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input className={styles.formInput} type="number" min={1} value={ing.count} style={{ width: 56 }}
+                        onChange={e => setEditRecipe(p => {
+                          if (!p) return p;
+                          const arr = [...p.ingredients];
+                          arr[idx] = { ...arr[idx], count: parseInt(e.target.value) || 1 };
+                          return { ...p, ingredients: arr };
+                        })} />
+                      <button className={styles.dangerBtn}
+                        onClick={() => setEditRecipe(p => p && ({ ...p, ingredients: p.ingredients.filter((_, i) => i !== idx) }))}>
+                        🗑
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                  <button className={styles.formSubmitBtn} onClick={handleSaveRecipe}>💾 저장</button>
+                  <button className={styles.fetchBtn} onClick={() => setEditRecipe(null)}>취소</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 카드 업로드 탭 ────────────────────────────────────────────────── */}
+        {tab === 'upload' && (
+          <div className={styles.card}>
+            <div className={styles.cardTitle}><span>📤</span> 카드 업로드</div>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: '0 0 16px' }}>
+              이미지를 업로드하면 즉시 가챠 풀에 추가됩니다 (서버 재시작 불필요)
+            </p>
+
+            {/* 이미지 선택 */}
+            <div className={styles.formRow} style={{ marginBottom: 16 }}>
+              <label className={styles.formLabel}>이미지 파일</label>
+              <input type="file" accept="image/*" className={styles.formInput}
+                onChange={handleUploadFileChange} />
+            </div>
+            {uploadPreview && (
+              <img src={uploadPreview} alt="preview"
+                style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 10, marginBottom: 16, border: '2px solid rgba(255,255,255,0.15)' }} />
+            )}
+
+            <div className={styles.formGrid2}>
+              <div className={styles.formRow}>
+                <label className={styles.formLabel}>카드 이름</label>
+                <input className={styles.formInput} placeholder="예: 송싸이언" value={uploadName}
+                  onChange={e => setUploadName(e.target.value)} />
+              </div>
+              <div className={styles.formRow}>
+                <label className={styles.formLabel}>등급</label>
+                <select className={styles.formInput} value={uploadRarity}
+                  onChange={e => setUploadRarity(e.target.value as any)}>
+                  <option value="legendary">⭐ 전설</option>
+                  <option value="epic">💜 에픽</option>
+                  <option value="rare">💙 레어</option>
+                  <option value="common">⬜ 일반</option>
+                </select>
+              </div>
+              <div className={styles.formRow}>
+                <label className={styles.formLabel}>가중치 (확률)</label>
+                <input className={styles.formInput} type="number" min={1} value={uploadProb}
+                  onChange={e => setUploadProb(e.target.value)} />
+              </div>
+            </div>
+
+            <button className={styles.formSubmitBtn} onClick={handleUploadCard}
+              disabled={!uploadFile || !uploadName}
+              style={{ marginTop: 8 }}>
+              📤 카드 업로드
+            </button>
           </div>
         )}
       </div>

@@ -93,6 +93,7 @@ export function getRarityColor(rarity: string): string {
     rare: '#4169E1',
     epic: '#9932CC',
     legendary: '#FFD700',
+    special: '#FF4FD8',
   };
   return colors[rarity] || '#808080';
 }
@@ -106,6 +107,7 @@ export function getRarityLabel(rarity: string): string {
     rare: '레어',
     epic: '에픽',
     legendary: '전설',
+    special: '스페셜',
   };
   return labels[rarity] || '일반';
 }

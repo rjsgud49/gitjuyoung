@@ -1,9 +1,27 @@
+export type Rarity = 'common' | 'rare' | 'epic' | 'legendary' | 'special';
+
 export interface GachaItem {
   id: string;
   name: string;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  rarity: Rarity;
   image: string;
   probability: number;
+}
+
+export interface SynthesisIngredient {
+  itemId: string;
+  itemName: string;
+  count: number;
+}
+
+export interface SynthesisRecipe {
+  id: string;
+  name: string;
+  resultItemId: string;
+  resultItemName: string;
+  resultItemRarity: Rarity;
+  resultItemImage: string;
+  ingredients: SynthesisIngredient[];
 }
 
 export interface CollectedItem extends GachaItem {

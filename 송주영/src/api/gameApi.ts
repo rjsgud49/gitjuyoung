@@ -317,6 +317,72 @@ export async function postBuyAuction(token: string, auctionId: number): Promise<
   return r.json() as Promise<{ coinsSpent: number }>;
 }
 
+// ─── Synthesis API ────────────────────────────────────────────────────────────
+
+export interface SynthesisRecipeApi {
+  id: string;
+  name: string;
+  resultItemId: string;
+  resultItemName: string;
+  resultItemRarity: string;
+  resultItemImage: string;
+  ingredients: { itemId: string; itemName: string; count: number }[];
+}
+
+export async function fetchSynthesisRecipes(): Promise<SynthesisRecipeApi[]> {
+  const r = await fetch('/api/synthesis/recipes');
+  if (!r.ok) throw new Error(`synthesis/recipes ${r.status}`);
+  return r.json() as Promise<SynthesisRecipeApi[]>;
+}
+
+export async function postCraftSynthesis(
+  token: string, recipeId: string
+): Promise<{ resultItemId: string; resultItemName: string; resultItemRarity: string; resultItemImage: string }> {
+  const r = await fetch('/api/synthesis/craft', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipeId }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function postAdminSynthesisRecipe(token: string, recipe: SynthesisRecipeApi): Promise<void> {
+  const r = await fetch('/api/admin/synthesis/recipes', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(recipe),
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+export async function deleteAdminSynthesisRecipe(token: string, id: string): Promise<void> {
+  const r = await fetch(`/api/admin/synthesis/recipes/${encodeURIComponent(id)}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+export async function postAdminUploadCard(
+  token: string,
+  file: File,
+  meta: { id: string; name: string; rarity: string; probability: number }
+): Promise<{ imageUrl: string }> {
+  const form = new FormData();
+  form.append('image', file);
+  form.append('id', meta.id);
+  form.append('name', meta.name);
+  form.append('rarity', meta.rarity);
+  form.append('probability', String(meta.probability));
+  const r = await fetch('/api/admin/upload-card', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json() as Promise<{ imageUrl: string }>;
+}
+
 export async function putApiAdminGlobal(
   token: string,
   body: GlobalApiPayload
