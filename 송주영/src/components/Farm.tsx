@@ -23,7 +23,7 @@ interface Props {
 const CARD_SIZE = 72;
 const SPEED_BASE = 45;
 
-const RARITY_ORDER: GachaItem['rarity'][] = ['legendary', 'epic', 'rare', 'common'];
+const RARITY_ORDER: GachaItem['rarity'][] = ['special', 'legendary', 'epic', 'rare', 'common'];
 const RARITY_LABEL: Record<GachaItem['rarity'], string> = {
   legendary: '전설', epic: '에픽', rare: '레어', common: '일반', special: '스페셜',
 };
