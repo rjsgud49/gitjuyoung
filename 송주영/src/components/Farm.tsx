@@ -403,6 +403,24 @@ export function Farm({
     }
   };
 
+  const pickerItems = useMemo(() => {
+    const map = new Map<string, GachaItem>();
+    for (const item of gachaItems) map.set(item.id, item);
+    for (const owned of collectedItems.values()) {
+      if (!map.has(owned.id)) {
+        map.set(owned.id, {
+          id: owned.id,
+          name: owned.name,
+          rarity: owned.rarity,
+          image: owned.image,
+          probability: owned.probability,
+          resultCardImage: owned.resultCardImage,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [gachaItems, collectedItems]);
+
   if (!githubToken) {
     return (
       <div className={styles.farmPage}>
@@ -430,23 +448,6 @@ export function Farm({
 
   const totalRate = farm.placedItems.reduce((s, it) => s + it.individualValue, 0);
   const placedIds = new Set(farm.placedItems.map(i => i.itemId));
-  const pickerItems = useMemo(() => {
-    const map = new Map<string, GachaItem>();
-    for (const item of gachaItems) map.set(item.id, item);
-    for (const owned of collectedItems.values()) {
-      if (!map.has(owned.id)) {
-        map.set(owned.id, {
-          id: owned.id,
-          name: owned.name,
-          rarity: owned.rarity,
-          image: owned.image,
-          probability: owned.probability,
-          resultCardImage: owned.resultCardImage,
-        });
-      }
-    }
-    return Array.from(map.values());
-  }, [gachaItems, collectedItems]);
 
   return (
     <div className={styles.farmPage}>
