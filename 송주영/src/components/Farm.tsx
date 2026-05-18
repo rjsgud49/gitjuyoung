@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { GachaItem, CollectedItem } from '../types';
 import {
   fetchFarm, putFarmPlace, deleteFarmItem,
@@ -430,6 +430,23 @@ export function Farm({
 
   const totalRate = farm.placedItems.reduce((s, it) => s + it.individualValue, 0);
   const placedIds = new Set(farm.placedItems.map(i => i.itemId));
+  const pickerItems = useMemo(() => {
+    const map = new Map<string, GachaItem>();
+    for (const item of gachaItems) map.set(item.id, item);
+    for (const owned of collectedItems.values()) {
+      if (!map.has(owned.id)) {
+        map.set(owned.id, {
+          id: owned.id,
+          name: owned.name,
+          rarity: owned.rarity,
+          image: owned.image,
+          probability: owned.probability,
+          resultCardImage: owned.resultCardImage,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [gachaItems, collectedItems]);
 
   return (
     <div className={styles.farmPage}>
@@ -581,7 +598,7 @@ export function Farm({
       {/* Card picker modal */}
       {pickerOpen && (
         <CardPicker
-          gachaItems={gachaItems}
+          gachaItems={pickerItems}
           collectedItems={collectedItems}
           placedIds={placedIds}
           onSelect={handlePlace}
