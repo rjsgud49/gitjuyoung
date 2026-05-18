@@ -1105,7 +1105,9 @@ export async function buyAuction(buyerLogin: string, auctionId: number): Promise
       `INSERT INTO user_collected_items
          (user_id, item_id, item_name, item_rarity, item_image, item_probability, count, first_acquired_at, individual_value)
        VALUES (?, ?, ?, ?, ?, 0, 1, NOW(), ?)
-       ON DUPLICATE KEY UPDATE count = count + 1`,
+       ON DUPLICATE KEY UPDATE
+         count = count + 1,
+         individual_value = GREATEST(individual_value, VALUES(individual_value))`,
       [buyer.id, auction.item_id, auction.item_name, auction.item_rarity, auction.item_image, parseFloat(auction.individual_value)]
     );
     await conn.query(

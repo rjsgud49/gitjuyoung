@@ -102,7 +102,12 @@ export function Auction({
       const existing = collectedItems.get(auction.itemId);
       const updated = new Map(collectedItems);
       if (existing) {
-        updated.set(auction.itemId, { ...existing, count: existing.count + 1 });
+        updated.set(auction.itemId, {
+          ...existing,
+          count: existing.count + 1,
+          // 동일 카드는 1개 생산력만 저장하므로 더 높은 값을 유지한다.
+          individualValue: Math.max(existing.individualValue, auction.individualValue),
+        });
       } else {
         updated.set(auction.itemId, {
           id: auction.itemId, name: auction.itemName, rarity: auction.itemRarity,
