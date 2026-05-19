@@ -429,7 +429,15 @@ export async function postAdminUploadCard(
     headers: { Authorization: `Bearer ${token}` },
     body: form,
   });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    const text = await r.text();
+    let msg = text;
+    try {
+      const j = JSON.parse(text) as { error?: string };
+      if (j.error) msg = j.error;
+    } catch { /* plain text */ }
+    throw new Error(msg || `upload-card ${r.status}`);
+  }
   return r.json() as Promise<{ imageUrl: string; resultCardImageUrl?: string }>;
 }
 

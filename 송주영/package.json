@@ -12,6 +12,7 @@
     "build": "npm run sync-photos && tsc -b && vite build",
     "start": "npm run build && npm run server",
     "db:init": "tsx server/init-db.ts",
+    "db:check": "tsx server/db-check.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },

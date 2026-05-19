@@ -13,11 +13,11 @@ CREATE TABLE IF NOT EXISTS global_config (
 
 -- 가챠 아이템
 CREATE TABLE IF NOT EXISTS gacha_items (
-  id          VARCHAR(20)                                  PRIMARY KEY,
+  id          VARCHAR(255)                                 PRIMARY KEY,
   name        VARCHAR(200)                                 NOT NULL,
   rarity      ENUM('common','rare','epic','legendary')     NOT NULL,
   probability INT                                          NOT NULL,
-  image       VARCHAR(1000)                                NOT NULL
+  image       VARCHAR(2048)                                NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 이벤트
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS user_farm (
   id              INT AUTO_INCREMENT PRIMARY KEY,
   user_id         INT          NOT NULL,
   slot_index      INT          NOT NULL,
-  item_id         VARCHAR(20)  NOT NULL,
+  item_id         VARCHAR(255) NOT NULL,
   item_name       VARCHAR(200) NOT NULL,
   item_rarity     VARCHAR(50)  NOT NULL,
   item_image      VARCHAR(1000) NOT NULL,

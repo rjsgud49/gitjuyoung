@@ -36,6 +36,7 @@ import {
   deleteSynthesisRecipe,
   performSynthesis,
   addCardToGachaPool,
+  checkDbHealth,
   type GlobalState,
   type UserState,
 } from './store';
@@ -122,9 +123,19 @@ function inferPublicApiOrigin(req: express.Request): string | undefined {
   return `${proto}://${rawHost}`;
 }
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
   const publicApiOrigin = inferPublicApiOrigin(req);
-  res.json({ ok: true, ...(publicApiOrigin ? { publicApiOrigin } : {}) });
+  let db: Awaited<ReturnType<typeof checkDbHealth>>;
+  try {
+    db = await checkDbHealth();
+  } catch (e) {
+    db = { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+  res.json({
+    ok: true,
+    db,
+    ...(publicApiOrigin ? { publicApiOrigin } : {}),
+  });
 });
 
 app.get('/api/global', async (_req, res) => {
@@ -488,14 +499,18 @@ app.post('/api/admin/upload-card', upload.fields([{ name: 'image' }, { name: 're
     const cardData: any = {
       id, name, rarity,
       image: imageUrl,
-      probability: parseFloat(probability ?? '15') || 15,
+      probability: Math.round(parseFloat(probability ?? '15') || 15),
     };
     if (resultCardImageUrl) {
       cardData.resultCardImage = resultCardImageUrl;
     }
     await addCardToGachaPool(cardData);
     res.json({ ok: true, imageUrl, resultCardImageUrl });
-  } catch { res.status(500).json({ error: 'db_error' }); }
+  } catch (e) {
+    console.error('[upload-card]', e);
+    const msg = e instanceof Error ? e.message : 'db_error';
+    res.status(500).json({ error: msg });
+  }
 });
 
 app.post('/api/admin/upload-synthesis-recipe-image', upload.single('image'), async (req, res) => {

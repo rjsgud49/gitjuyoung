@@ -251,9 +251,191 @@ export async function saveFarmConfig(cfg: FarmConfig): Promise<void> {
 
 // ─── DB auto-init ────────────────────────────────────────────────────────────
 
+export interface DbHealthStatus {
+  ok: boolean;
+  error?: string;
+  tables?: Record<string, boolean>;
+  gachaItemsCount?: number;
+  gachaItemsIdColumn?: string;
+}
+
+/** 카드 업로드·가챠에 필요한 핵심 테이블 (db:init 없이 서버만 켠 경우 대비) */
+async function ensureCoreTables(conn: Awaited<ReturnType<typeof pool.getConnection>>): Promise<void> {
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS global_config (
+      id                  TINYINT PRIMARY KEY DEFAULT 1,
+      gacha_items_version VARCHAR(50)  NOT NULL DEFAULT 'v1',
+      gacha_pull_cost     INT          NOT NULL DEFAULT 10,
+      starting_coins      INT          NOT NULL DEFAULT 30,
+      CONSTRAINT one_row CHECK (id = 1)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS gacha_items (
+      id          VARCHAR(255)                             PRIMARY KEY,
+      name        VARCHAR(200)                             NOT NULL,
+      rarity      ENUM('common','rare','epic','legendary') NOT NULL,
+      probability INT                                      NOT NULL,
+      image       VARCHAR(2048)                            NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS events (
+      id          VARCHAR(36)  PRIMARY KEY,
+      name        VARCHAR(200) NOT NULL,
+      type        ENUM('pull_discount','coin_multiplier') NOT NULL,
+      value       DECIMAL(10,2) NOT NULL,
+      description TEXT,
+      expires_at  DATETIME,
+      is_active   TINYINT(1)   NOT NULL DEFAULT 1,
+      created_at  DATETIME     NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS announcements (
+      id         VARCHAR(36)  PRIMARY KEY,
+      title      VARCHAR(200) NOT NULL,
+      content    TEXT         NOT NULL,
+      type       ENUM('info','event','warning','update') NOT NULL DEFAULT 'info',
+      is_pinned  TINYINT(1)   NOT NULL DEFAULT 0,
+      created_at DATETIME     NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id                   INT AUTO_INCREMENT PRIMARY KEY,
+      github_login         VARCHAR(100) NOT NULL,
+      github_id            BIGINT       NOT NULL,
+      coins                INT          NOT NULL DEFAULT 30,
+      total_pulls          INT          NOT NULL DEFAULT 0,
+      github_username      VARCHAR(100),
+      github_total_commits INT,
+      github_fetched_at    DATETIME,
+      last_checkin_date    DATE         NULL DEFAULT NULL,
+      farm_slots           INT          NOT NULL DEFAULT 3,
+      farm_last_collect    DATETIME     NULL DEFAULT NULL,
+      created_at           DATETIME     DEFAULT CURRENT_TIMESTAMP,
+      updated_at           DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_login     (github_login),
+      UNIQUE KEY uq_github_id (github_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS user_farm (
+      id              INT AUTO_INCREMENT PRIMARY KEY,
+      user_id         INT          NOT NULL,
+      slot_index      INT          NOT NULL,
+      item_id         VARCHAR(255) NOT NULL,
+      item_name       VARCHAR(200) NOT NULL,
+      item_rarity     VARCHAR(50)  NOT NULL,
+      item_image      VARCHAR(2048) NOT NULL,
+      production_rate DECIMAL(6,2) NOT NULL,
+      placed_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_user_slot (user_id, slot_index),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS user_collected_items (
+      id                INT AUTO_INCREMENT PRIMARY KEY,
+      user_id           INT          NOT NULL,
+      item_id           VARCHAR(255) NOT NULL,
+      item_name         VARCHAR(200) NOT NULL,
+      item_rarity       VARCHAR(50)  NOT NULL,
+      item_image        VARCHAR(2048) NOT NULL,
+      item_probability  INT          NOT NULL,
+      count             INT          NOT NULL DEFAULT 1,
+      first_acquired_at DATETIME     NOT NULL,
+      individual_value  DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+      UNIQUE KEY uq_user_item (user_id, item_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  console.log('[db] core tables OK (global_config, gacha_items, users, …)');
+
+  await conn.query(
+    `INSERT IGNORE INTO global_config (id, gacha_items_version, gacha_pull_cost, starting_coins)
+     VALUES (1, ?, 10, 30)`,
+    [ITEMS_VERSION],
+  );
+
+  const [countRows] = await conn.query('SELECT COUNT(*) AS c FROM gacha_items') as any[];
+  const itemCount = Number((countRows as any[])[0]?.c ?? 0);
+  if (itemCount === 0) {
+    await conn.query(
+      'INSERT INTO gacha_items (id, name, rarity, probability, image) VALUES ?',
+      [DEFAULT_ITEMS.map(i => [i.id, i.name, i.rarity, i.probability, normalizeStoredImagePath(i.image)])],
+    );
+    console.log(`[db] gacha_items 비어 있음 → 기본 카드 ${DEFAULT_ITEMS.length}개 시드`);
+  }
+}
+
+export async function checkDbHealth(): Promise<DbHealthStatus> {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('SELECT 1');
+    const required = ['global_config', 'gacha_items', 'users', 'user_collected_items'] as const;
+    const tables: Record<string, boolean> = {};
+    for (const t of required) {
+      const [rows] = await conn.query(
+        `SELECT COUNT(*) AS c FROM information_schema.tables
+         WHERE table_schema = DATABASE() AND table_name = ?`,
+        [t],
+      ) as any[];
+      tables[t] = Number((rows as any[])[0]?.c) > 0;
+    }
+    if (!tables.gacha_items) {
+      return {
+        ok: false,
+        error: 'gacha_items 테이블이 없습니다. 서버를 재시작하거나 npm run db:init 을 실행하세요.',
+        tables,
+      };
+    }
+    const [colRows] = await conn.query(
+      `SELECT COLUMN_TYPE AS t FROM information_schema.columns
+       WHERE table_schema = DATABASE() AND table_name = 'gacha_items' AND column_name = 'id'`,
+    ) as any[];
+    const idType = String((colRows as any[])[0]?.t ?? '');
+    const [cnt] = await conn.query('SELECT COUNT(*) AS c FROM gacha_items') as any[];
+    const gachaItemsCount = Number((cnt as any[])[0]?.c ?? 0);
+    if (/varchar\(20\)/i.test(idType)) {
+      return {
+        ok: false,
+        error: 'gacha_items.id 가 VARCHAR(20) 입니다. 카드 업로드가 실패할 수 있어 서버 재시작으로 컬럼을 늘려 주세요.',
+        tables,
+        gachaItemsCount,
+        gachaItemsIdColumn: idType,
+      };
+    }
+    return { ok: true, tables, gachaItemsCount, gachaItemsIdColumn: idType || undefined };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/ECONNREFUSED|ER_ACCESS_DENIED|Unknown database/i.test(msg)) {
+      return {
+        ok: false,
+        error: `MySQL 연결 실패: ${msg} — .env 의 DB_HOST/DB_USER/DB_PASSWORD/DB_NAME 과 MySQL 실행 여부를 확인하세요.`,
+      };
+    }
+    return { ok: false, error: msg };
+  } finally {
+    conn.release();
+  }
+}
+
 export async function initDb(): Promise<void> {
   const conn = await pool.getConnection();
   try {
+    await ensureCoreTables(conn);
+
+    try {
+      await conn.query('ALTER TABLE gacha_items MODIFY COLUMN id VARCHAR(255) NOT NULL');
+      await conn.query('ALTER TABLE gacha_items MODIFY COLUMN image VARCHAR(2048) NOT NULL');
+      console.log('[db] gacha_items.id/image 컬럼 확장 OK');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/Unknown table|doesn.*t exist/i.test(msg)) console.warn('[db] alter gacha_items:', msg);
+    }
+
     await conn.query(`
       CREATE TABLE IF NOT EXISTS synthesis_recipes (
         id                   VARCHAR(64)   PRIMARY KEY,
@@ -367,6 +549,13 @@ export async function initDb(): Promise<void> {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (!/Unknown table|doesn.*t exist/i.test(msg)) console.warn('[db] alter user_farm.item_rarity:', msg);
+    }
+    try {
+      await conn.query('ALTER TABLE user_farm MODIFY COLUMN item_id VARCHAR(255) NOT NULL');
+      console.log('[db] user_farm.item_id → VARCHAR(255)');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/Unknown table|doesn.*t exist/i.test(msg)) console.warn('[db] alter user_farm.item_id:', msg);
     }
 
     // 서버 시작 시 DB 설정값을 메모리 RARITY_RANGES에 반영
@@ -1350,7 +1539,12 @@ export async function addCardToGachaPool(card: {
       `INSERT INTO gacha_items (id, name, rarity, probability, image) VALUES (?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE name=VALUES(name), rarity=VALUES(rarity),
          probability=VALUES(probability), image=VALUES(image)`,
-      [card.id, card.name, card.rarity, card.probability, normalizeStoredImagePath(card.image)]
+      [card.id, card.name, card.rarity, Math.round(card.probability), normalizeStoredImagePath(card.image)]
+    );
+    await conn.query(
+      `INSERT INTO global_config (id, gacha_items_version, gacha_pull_cost, starting_coins)
+       VALUES (1, CONCAT('v', UNIX_TIMESTAMP()), 10, 30)
+       ON DUPLICATE KEY UPDATE gacha_items_version = CONCAT('v', UNIX_TIMESTAMP())`,
     );
   } finally { conn.release(); }
 }

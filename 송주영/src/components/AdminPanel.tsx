@@ -471,14 +471,25 @@ export const AdminPanel = ({
     if (files) addUploadFiles(files);
   };
 
+  const createUploadCardId = (suffix: number | string) =>
+    `up_${Date.now().toString(36)}_${suffix}`;
+
   const addUploadFiles = (files: FileList) => {
-    const newItems: typeof uploadFiles = [];
+    const validFiles: File[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!/\.(png|jpg|jpeg|gif|webp)$/i.test(file.name)) {
         showToast(`⚠️ ${file.name}은(는) 이미지 파일이 아닙니다`);
         continue;
       }
+      validFiles.push(file);
+    }
+    if (validFiles.length === 0) return;
+
+    const newItems: typeof uploadFiles = [];
+    let pending = validFiles.length;
+
+    for (const file of validFiles) {
       const reader = new FileReader();
       reader.onload = (event) => {
         newItems.push({
@@ -488,7 +499,8 @@ export const AdminPanel = ({
           rarity: 'common',
           prob: '15',
         });
-        if (newItems.length + uploadFiles.length >= files.length) {
+        pending -= 1;
+        if (pending === 0) {
           setUploadFiles(prev => [...prev, ...newItems]);
         }
       };
@@ -514,13 +526,13 @@ export const AdminPanel = ({
       showToast('❌ 파일과 이름을 입력하세요'); return;
     }
 
-    const autoId = `card_${card.file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9가-힣_-]/g, '_')}_${Date.now()}_${idx}`;
-    
+    const autoId = createUploadCardId(idx);
+
     try {
       updateUploadCard(idx, 'uploading', true);
       await postAdminUploadCard(githubToken, card.file, {
         id: autoId, name: card.name, rarity: card.rarity,
-        probability: parseFloat(card.prob) || 15,
+        probability: Math.round(parseFloat(card.prob) || 15),
         resultCardImage: card.resultCardImage,
       });
       showToast(`✅ "${card.name}" 카드 업로드 완료`);
@@ -543,10 +555,10 @@ export const AdminPanel = ({
       try {
         updateUploadCard(i, 'uploading', true);
         const card = uploadFiles[i];
-        const autoId = `card_${card.file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9가-힣_-]/g, '_')}_${Date.now()}_${i}`;
+        const autoId = createUploadCardId(i);
         await postAdminUploadCard(githubToken, card.file, {
           id: autoId, name: card.name, rarity: card.rarity,
-          probability: parseFloat(card.prob) || 15,
+          probability: Math.round(parseFloat(card.prob) || 15),
           resultCardImage: card.resultCardImage,
         });
         successCount++;
