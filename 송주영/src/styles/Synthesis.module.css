@@ -21,9 +21,23 @@
   border-radius: 18px;
   padding: 24px;
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.recipeName {
+  font-size: 18px;
+  font-weight: 800;
+  color: #e8c870;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.recipeBody {
+  display: flex;
   align-items: center;
   gap: 24px;
-  transition: border-color 0.2s, background 0.2s;
 }
 
 .craftable {
@@ -178,7 +192,7 @@
 .resultCloseBtn:hover { transform: translateY(-1px); }
 
 @media (max-width: 600px) {
-  .recipeCard { flex-direction: column; align-items: stretch; }
+  .recipeBody { flex-direction: column; align-items: stretch; }
   .arrowSection { transform: rotate(90deg) scaleX(-1); text-align: center; }
   .craftBtn { width: 100%; }
 }

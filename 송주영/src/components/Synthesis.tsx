@@ -99,6 +99,10 @@ export const Synthesis = ({ githubToken, collectedItems, onCollectedItemsChange 
                 key={recipe.id}
                 className={`${styles.recipeCard} ${craftable ? styles.craftable : styles.notCraftable}`}
               >
+                {recipe.name ? (
+                  <div className={styles.recipeName}>{recipe.name}</div>
+                ) : null}
+                <div className={styles.recipeBody}>
                 {/* 결과 카드 */}
                 <div className={styles.resultSection}>
                   <div className={styles.resultLabel}>합성 결과</div>
@@ -161,6 +165,7 @@ export const Synthesis = ({ githubToken, collectedItems, onCollectedItemsChange 
                 >
                   {crafting === recipe.id ? '합성 중…' : craftable ? '⚗️ 합성하기' : '재료 부족'}
                 </button>
+                </div>
               </div>
             );
           })}
