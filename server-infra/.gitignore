@@ -1,8 +1,0 @@
-logs/
-*.log
-*.pem
-*.key
-*.pfx
-.env
-.env.*
-secrets.json
